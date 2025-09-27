@@ -11,7 +11,7 @@ from datetime import datetime
 import plotly.express as px
 import plotly.graph_objects as go
 import streamlit as st
-from agent_core import EcoAgent, SustainabilityRequest
+from agent.agent_core import EcoAgent, SustainabilityRequest
 from auth import init_auth, require_auth
 from database import ConsumptionData, get_session
 

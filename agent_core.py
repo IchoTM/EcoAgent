@@ -1,10 +1,35 @@
 """
-EcoAgent core functionality
+EcoAgent core functionality - Using Google's Gemini 2.5-flash for advanced AI capabilities
 """
 import asyncio
+import os
 import random
-from typing import Optional
+import threading
+from typing import Optional, Dict, Any
+from datetime import datetime, timedelta
+import google.generativeai as genai
 from uagents import Agent, Context, Model
+from dotenv import load_dotenv
+from database import ConsumptionData, get_session
+
+# Load environment variables
+load_dotenv()
+
+# Configure Gemini
+GOOGLE_API_KEY = os.getenv('GOOGLE_API_KEY')
+if not GOOGLE_API_KEY:
+    raise ValueError("GOOGLE_API_KEY environment variable is not set")
+    
+try:
+    genai.configure(api_key=GOOGLE_API_KEY)
+except Exception as e:
+    print(f"Error configuring Gemini: {str(e)}")
+    raise
+
+# Initialize logging
+import logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 class SustainabilityRequest(Model):
     query_type: str
@@ -18,10 +43,6 @@ class SustainabilityResponse(Model):
     error: Optional[str] = None
     message: Optional[str] = None
 
-import multiprocessing
-import threading
-import queue
-
 class EcoAgent:
     def __init__(self):
         try:
@@ -34,31 +55,146 @@ class EcoAgent:
         self.setup_message_handlers()
         self._process = None
         self._running = False
-        self._message_queue = queue.Queue()
+
+    def _get_user_consumption_data(self, user_id: str) -> Dict[str, Any]:
+        """Retrieve user's consumption data from the database"""
+        session = get_session()
+        try:
+            # Get data from the last 30 days
+            start_date = datetime.now() - timedelta(days=30)
+            consumption_data = (
+                session.query(ConsumptionData)
+                .filter(
+                    ConsumptionData.user_id == user_id,
+                    ConsumptionData.timestamp >= start_date
+                )
+                .order_by(ConsumptionData.timestamp.desc())
+                .all()
+            )
+
+            if not consumption_data:
+                return {}
+
+            # Calculate averages and totals
+            total_electricity = 0
+            total_gas = 0
+            total_water = 0
+            total_car_miles = 0
+            total_days = len(consumption_data)
+
+            for record in consumption_data:
+                total_electricity += record.electricity_kwh or 0
+                total_gas += record.gas_therms or 0
+                total_water += record.water_gallons or 0
+                total_car_miles += record.car_miles or 0
+
+            # Calculate daily averages
+            return {
+                'latest_data': {
+                    'electricity': round(total_electricity / total_days, 2),
+                    'gas': round(total_gas / total_days, 2),
+                    'water': round(total_water / total_days, 2),
+                    'car_miles': round(total_car_miles / total_days, 2)
+                },
+                'trends': {
+                    'electricity_trend': self._calculate_trend([d.electricity_kwh for d in consumption_data if d.electricity_kwh]),
+                    'gas_trend': self._calculate_trend([d.gas_therms for d in consumption_data if d.gas_therms]),
+                    'water_trend': self._calculate_trend([d.water_gallons for d in consumption_data if d.water_gallons]),
+                    'car_miles_trend': self._calculate_trend([d.car_miles for d in consumption_data if d.car_miles])
+                }
+            }
+        finally:
+            session.close()
+
+    def _calculate_trend(self, values: list) -> str:
+        """Calculate if a metric is increasing, decreasing, or stable"""
+        if not values or len(values) < 2:
+            return "stable"
         
+        first_half = sum(values[:len(values)//2]) / (len(values)//2)
+        second_half = sum(values[len(values)//2:]) / (len(values) - len(values)//2)
+        
+        diff_percent = ((second_half - first_half) / first_half) * 100
+        
+        if diff_percent > 5:
+            return "increasing"
+        elif diff_percent < -5:
+            return "decreasing"
+        else:
+            return "stable"
+
+    def _generate_prompt(self, user_data: Dict[str, Any], message: str) -> str:
+        """Generate a detailed context-aware prompt for Gemini"""
+        trends = user_data.get('trends', {})
+        latest = user_data.get('latest_data', {})
+
+        # National averages (monthly)
+        AVG_ELECTRICITY = 877  # kWh per household
+        AVG_GAS = 63  # therms per household
+        AVG_WATER = 7000  # gallons per household
+        AVG_CAR_MILES = 1000  # miles per month
+
+        context = f"""You are an advanced AI sustainability advisor with expertise in environmental science, 
+        energy efficiency, and sustainable living. Here is the user's current consumption data and trends:
+
+        Current Monthly Consumption:
+        - Electricity: {latest.get('electricity', 'No data')} kWh (US Average: {AVG_ELECTRICITY} kWh)
+        - Natural Gas: {latest.get('gas', 'No data')} therms (US Average: {AVG_GAS} therms)
+        - Water: {latest.get('water', 'No data')} gallons (US Average: {AVG_WATER} gallons)
+        - Car Usage: {latest.get('car_miles', 'No data')} miles (US Average: {AVG_CAR_MILES} miles)
+
+        30-Day Trends:
+        - Electricity usage is {trends.get('electricity_trend', 'unknown')}
+        - Natural gas usage is {trends.get('gas_trend', 'unknown')}
+        - Water consumption is {trends.get('water_trend', 'unknown')}
+        - Car usage is {trends.get('car_miles_trend', 'unknown')}
+
+        Carbon Impact Analysis:
+        """
+
+        # Calculate carbon impact if data is available
+        if latest.get('electricity'):
+            context += f"- Electricity carbon footprint: {round(latest['electricity'] * 0.92, 2)} lbs CO2/month\n"
+        if latest.get('gas'):
+            context += f"- Natural gas carbon footprint: {round(latest['gas'] * 11.7, 2)} lbs CO2/month\n"
+        if latest.get('car_miles'):
+            context += f"- Vehicle carbon footprint: {round(latest['car_miles'] * 0.887, 2)} lbs CO2/month\n"
+
+        context += f"""
+        User's Question: {message}
+
+        Please provide personalized advice that:
+        1. Addresses their specific consumption patterns and trends
+        2. Suggests actionable improvements based on their data
+        3. Compares their usage to national averages
+        4. Highlights areas where they're doing well and where they need improvement
+        5. Includes specific tips for reducing their environmental impact
+        6. Estimates potential cost and carbon savings from suggested improvements
+
+        Keep the response friendly, encouraging, and focused on achievable goals."""
+
+        return context
+
     def setup_message_handlers(self):
         @self.agent.on_interval(period=2.0)
         async def interval_handler(ctx: Context):
-            # Add periodic checks here
+            # Periodic checks can be implemented here
             pass
             
         @self.agent.on_message(model=SustainabilityRequest)
         async def message_handler(ctx: Context, sender: str, msg: SustainabilityRequest):
-            # Handle incoming messages
             try:
                 if msg.query_type == "chat":
-                    # Process chat message and generate response
-                    response_message = await ctx.agent.generate_response(msg.message, msg.data)
+                    response_message = self._generate_chat_response(msg.message, msg.user_id, msg.data)
                     response = SustainabilityResponse(
                         status="success",
                         message=response_message,
                         data={"type": "chat"}
                     )
                 else:
-                    # Handle other request types
                     response = SustainabilityResponse(
-                        status="success",
-                        data={"message": f"Processed request type: {msg.query_type}"}
+                        status="error",
+                        error="Unsupported request type"
                     )
             except Exception as e:
                 response = SustainabilityResponse(
@@ -66,6 +202,51 @@ class EcoAgent:
                     error=str(e)
                 )
             await ctx.send(sender, response)
+
+    def _generate_chat_response(self, message: str, user_id: str, additional_data: Optional[dict] = None) -> str:
+        """Generate a response using Gemini 2.5-flash with user's consumption data"""
+        try:
+            print(f"DEBUG: Starting chat response generation for message: {message}")
+            print(f"DEBUG: User ID: {user_id}")
+            
+            # Get user's consumption data from database
+            user_data = self._get_user_consumption_data(user_id)
+            print(f"DEBUG: Retrieved user data: {user_data}")
+            
+            # Merge with any additional data provided
+            if additional_data:
+                user_data.update(additional_data)
+
+            # Generate the context-aware prompt
+            prompt = self._generate_prompt(user_data, message)
+
+            # Get response from Gemini
+            try:
+                print("DEBUG: Creating Gemini model...")
+                # Initialize model with full path
+                model = genai.GenerativeModel('models/gemini-2.5-flash')  # Using the flash model which is available
+                print("DEBUG: Model created successfully")
+                
+                print("DEBUG: Generating content with prompt:", prompt[:200] + "...")
+                response = model.generate_content(prompt)
+                print("DEBUG: Content generated successfully")
+                print("DEBUG: Response:", response.text)
+                
+                if not response.text:
+                    return "I apologize, but I received an empty response. Please try asking your question again."
+                    
+                return response.text
+            except Exception as e:
+                print(f"DEBUG: Error in Gemini content generation: {str(e)}")
+                print(f"DEBUG: Error type: {type(e)}")
+                import traceback
+                print("DEBUG: Full traceback:")
+                print(traceback.format_exc())
+                raise
+            
+        except Exception as e:
+            return f"I apologize, but I encountered an error while processing your request: {str(e)}"
+
     def _run_agent(self):
         """Run the agent in a separate process"""
         import asyncio
@@ -78,7 +259,7 @@ class EcoAgent:
         if not self._running:
             self._running = True
             self._process = threading.Thread(target=self._run_agent)
-            self._process.daemon = True  # Thread will be terminated when main process exits
+            self._process.daemon = True
             self._process.start()
         
     def stop(self):
@@ -92,275 +273,47 @@ class EcoAgent:
         """Process a request synchronously and return the response"""
         try:
             if request.query_type == "chat":
-                # Add artificial thinking time with a progress spinner
-                import time
                 import streamlit as st
                 
+                print(f"\nDEBUG: Processing new chat request")
+                print(f"DEBUG: Message: {request.message}")
+                print(f"DEBUG: User ID: {request.user_id}")
+                print(f"DEBUG: Additional data: {request.data}")
+                
                 with st.spinner("🤔 Analyzing your sustainability data..."):
-                    # Add randomized thinking time between 1-2 seconds
-                    time.sleep(1 + random.random())
-                    
-                    # Generate response based on request type and user data
-                    message = self._generate_chat_response(request.message, request.data)
-                    
-                    # Add slight pause before showing response
-                    time.sleep(0.5)
-                    
-                return SustainabilityResponse(
-                    status="success",
-                    message=message,
-                    data={"type": "chat"}
-                )
+                    try:
+                        message = self._generate_chat_response(
+                            request.message,
+                            request.user_id,
+                            request.data
+                        )
+                        print("DEBUG: Successfully generated response")
+                        
+                        return SustainabilityResponse(
+                            status="success",
+                            message=message,
+                            data={"type": "chat"}
+                        )
+                    except Exception as chat_error:
+                        print(f"DEBUG: Error in chat response generation: {str(chat_error)}")
+                        import traceback
+                        print("DEBUG: Full traceback:")
+                        print(traceback.format_exc())
+                        return SustainabilityResponse(
+                            status="error",
+                            error=f"Error generating response: {str(chat_error)}"
+                        )
             else:
                 return SustainabilityResponse(
                     status="error",
                     error="Unsupported request type"
                 )
         except Exception as e:
+            print(f"DEBUG: Unexpected error in process_request: {str(e)}")
+            import traceback
+            print("DEBUG: Full traceback:")
+            print(traceback.format_exc())
             return SustainabilityResponse(
                 status="error",
-                error=str(e)
+                error=f"Unexpected error: {str(e)}"
             )
-    
-    def _generate_chat_response(self, message: str, data: dict) -> str:
-        """Generate a response to a chat message using the user's data"""
-        try:
-            # Get the user's latest sustainability data
-            latest_data = data.get('latest_data') if data else None
-            
-            # National averages (monthly)
-            AVG_ELECTRICITY = 877  # kWh per household
-            AVG_GAS = 63  # therms per household
-            AVG_WATER = 7000  # gallons per household
-            AVG_CAR_MILES = 1000  # miles
-            AVG_PUBLIC_TRANSPORT = 150  # miles
-            
-            # Constants for calculations
-            ELECTRICITY_CO2_PER_KWH = 0.92  # lbs CO2 per kWh
-            GAS_CO2_PER_THERM = 11.7  # lbs CO2 per therm
-            CAR_CO2_PER_MILE = 0.404  # lbs CO2 per mile
-            
-            if "electricity" in message.lower() or "energy" in message.lower():
-                if latest_data and latest_data.get('electricity'):
-                    kwh = latest_data['electricity']
-                    vs_avg = ((kwh - AVG_ELECTRICITY) / AVG_ELECTRICITY) * 100
-                    monthly_cost = kwh * 0.12  # Assuming $0.12 per kWh
-                    potential_savings = max(0, (kwh - AVG_ELECTRICITY) * 0.12)
-                    
-                    response = [
-                        f"📊 Current Electricity Analysis:",
-                        f"• Usage: {kwh:.1f} kWh/month",
-                        f"• Compared to Average: {'↑' if vs_avg > 0 else '↓'}{abs(vs_avg):.1f}%",
-                        f"• Estimated Monthly Cost: ${monthly_cost:.2f}",
-                        f"• CO2 Impact: {(kwh * ELECTRICITY_CO2_PER_KWH / 2000):.2f} tons",
-                        "",
-                        "🎯 Personalized Recommendations:"
-                    ]
-                    
-                    if vs_avg > 0:
-                        response.extend([
-                            f"You could save ${potential_savings:.2f}/month by reaching average consumption:",
-                            "1. Replace traditional bulbs with LEDs (75% less energy)",
-                            "2. Use smart power strips for electronics (saves 5-10%)",
-                            "3. Upgrade to Energy Star appliances (15-50% savings)",
-                            "4. Install a programmable thermostat (10-15% HVAC savings)"
-                        ])
-                    else:
-                        response.extend([
-                            "You're doing better than average! To further improve:",
-                            "1. Consider solar panel installation",
-                            "2. Explore home energy storage solutions",
-                            "3. Share your energy-saving practices with others"
-                        ])
-                    
-                    return "\n".join(response)
-                
-            elif "water" in message.lower():
-                if latest_data and latest_data.get('water'):
-                    gallons = latest_data['water']
-                    vs_avg = ((gallons - AVG_WATER) / AVG_WATER) * 100
-                    monthly_cost = gallons * 0.01  # Assuming $0.01 per gallon
-                    
-                    response = [
-                        f"💧 Water Usage Analysis:",
-                        f"• Usage: {gallons:.1f} gallons/month",
-                        f"• Compared to Average: {'↑' if vs_avg > 0 else '↓'}{abs(vs_avg):.1f}%",
-                        f"• Estimated Monthly Cost: ${monthly_cost:.2f}",
-                        "",
-                        "🎯 Water Conservation Tips:"
-                    ]
-                    
-                    if vs_avg > 0:
-                        response.extend([
-                            f"Potential monthly savings: {(gallons - AVG_WATER) * 0.01:.2f}",
-                            "1. Fix leaks (save up to 180 gallons/week)",
-                            "2. Install low-flow fixtures (save 30-50%)",
-                            "3. Use rain barrels for garden (save ~1,300 gallons)",
-                            "4. Run full loads of laundry (save 15-45 gallons/load)"
-                        ])
-                    else:
-                        response.extend([
-                            "You're below average! Additional tips:",
-                            "1. Install a greywater system",
-                            "2. Consider drought-resistant landscaping",
-                            "3. Share water conservation tips with neighbors"
-                        ])
-                    
-                    return "\n".join(response)
-                
-            elif "transport" in message.lower() or "car" in message.lower():
-                if latest_data:
-                    car_miles = latest_data.get('car_miles', 0)
-                    public_miles = latest_data.get('public_transport', 0)
-                    car_vs_avg = ((car_miles - AVG_CAR_MILES) / AVG_CAR_MILES) * 100
-                    
-                    car_co2 = (car_miles * CAR_CO2_PER_MILE / 2000)
-                    transport_ratio = public_miles / (car_miles + 0.1)
-                    
-                    response = [
-                        f"🚗 Transportation Analysis:",
-                        f"• Car Usage: {car_miles:.1f} miles/month",
-                        f"• Public Transit: {public_miles:.1f} miles/month",
-                        f"• Compared to Average: {'↑' if car_vs_avg > 0 else '↓'}{abs(car_vs_avg):.1f}%",
-                        f"• CO2 Impact: {car_co2:.2f} tons/month",
-                        "",
-                        "🎯 Transportation Recommendations:"
-                    ]
-                    
-                    if car_vs_avg > 0:
-                        savings = (car_miles - AVG_CAR_MILES) * 0.50  # Assuming $0.50/mile
-                        response.extend([
-                            f"Potential monthly savings: ${savings:.2f}",
-                            "1. Try carpooling (save 50-75% on commute costs)",
-                            "2. Use public transit for regular routes",
-                            "3. Combine errands into single trips",
-                            "4. Consider an electric/hybrid vehicle"
-                        ])
-                    else:
-                        response.extend([
-                            "You're below average in car usage! To further improve:",
-                            "1. Consider bike-sharing programs",
-                            "2. Explore walking routes for short trips",
-                            "3. Share your sustainable transport habits"
-                        ])
-                    
-                    return "\n".join(response)
-                
-            elif "carbon" in message.lower() or "footprint" in message.lower():
-                if latest_data:
-                    # Calculate carbon footprint components
-                    electricity_impact = float(latest_data.get('electricity', 0)) * ELECTRICITY_CO2_PER_KWH / 2000
-                    gas_impact = float(latest_data.get('gas', 0)) * GAS_CO2_PER_THERM / 2000
-                    car_impact = float(latest_data.get('car_miles', 0)) * CAR_CO2_PER_MILE / 2000
-                    
-                    # Diet impact factors
-                    diet_multipliers = {
-                        'Meat Daily': 1.0,
-                        'Meat Weekly': 0.8,
-                        'Vegetarian': 0.6,
-                        'Vegan': 0.4
-                    }
-                    
-                    diet_factor = diet_multipliers.get(latest_data.get('diet', 'Meat Daily'), 1.0)
-                    total_impact = (electricity_impact + gas_impact + car_impact) * diet_factor
-                    
-                    response = [
-                        f"🌍 Carbon Footprint Analysis:",
-                        f"Total Impact: {total_impact:.2f} tons CO2/month",
-                        "",
-                        "Breakdown by Source:",
-                        f"• Electricity: {electricity_impact:.2f} tons ({(electricity_impact/total_impact*100):.1f}%)",
-                        f"• Natural Gas: {gas_impact:.2f} tons ({(gas_impact/total_impact*100):.1f}%)",
-                        f"• Transportation: {car_impact:.2f} tons ({(car_impact/total_impact*100):.1f}%)",
-                        "",
-                        "🎯 Impact Reduction Opportunities:"
-                    ]
-                    
-                    # Target recommendations based on largest contributors
-                    impacts = [
-                        ("electricity", electricity_impact),
-                        ("gas", gas_impact),
-                        ("transportation", car_impact)
-                    ]
-                    
-                    top_contributor = max(impacts, key=lambda x: x[1])[0]
-                    
-                    if top_contributor == "electricity":
-                        response.extend([
-                            "Your largest impact comes from electricity usage:",
-                            "1. Switch to renewable energy provider",
-                            "2. Invest in solar panels",
-                            "3. Upgrade to energy-efficient appliances"
-                        ])
-                    elif top_contributor == "gas":
-                        response.extend([
-                            "Your largest impact comes from natural gas usage:",
-                            "1. Improve home insulation",
-                            "2. Install a smart thermostat",
-                            "3. Consider heat pump alternatives"
-                        ])
-                    else:
-                        response.extend([
-                            "Your largest impact comes from transportation:",
-                            "1. Consider an electric vehicle",
-                            "2. Use public transportation more often",
-                            "3. Explore carpooling options"
-                        ])
-                    
-                    return "\n".join(response)
-            
-            # General sustainability analysis
-            # General sustainability analysis
-            if latest_data:
-                scores = []
-                
-                # Calculate energy score
-                if 'electricity' in latest_data:
-                    if latest_data['electricity'] is not None:
-                        vs_avg = ((latest_data['electricity'] - AVG_ELECTRICITY) / AVG_ELECTRICITY) * 100
-                        scores.append(("Energy", max(0, min(100, 100 - vs_avg))))
-                
-                # Calculate water score        
-                if 'water' in latest_data:
-                    if latest_data['water'] is not None:
-                        vs_avg = ((latest_data['water'] - AVG_WATER) / AVG_WATER) * 100
-                        scores.append(("Water", max(0, min(100, 100 - vs_avg))))
-                
-                # Calculate transportation score
-                if 'car_miles' in latest_data:
-                    if latest_data['car_miles'] is not None:
-                        vs_avg = ((latest_data['car_miles'] - AVG_CAR_MILES) / AVG_CAR_MILES) * 100
-                        scores.append(("Transportation", max(0, min(100, 100 - vs_avg))))
-                
-                response = [
-                    "📊 Overall Sustainability Analysis:",
-                    "",
-                    "Performance Scores (100 = Best):"
-                ]
-                
-                for category, score in scores:
-                    response.append(f"• {category}: {score:.0f}/100 {'✅' if score >= 80 else '⚠️' if score >= 50 else '❌'}")
-                
-                response.extend([
-                    "",
-                    "💡 What would you like to know more about?",
-                    "• Type 'electricity' for energy analysis",
-                    "• Type 'water' for water usage details",
-                    "• Type 'transport' for transportation impact",
-                    "• Type 'carbon' for your carbon footprint"
-                ])
-                
-                return "\n".join(response)
-            
-            # Default response for no data
-            return (
-                "I can help analyze your sustainability metrics and provide personalized recommendations. "
-                "Please provide your consumption data first, and then ask me about:\n"
-                "• Electricity usage and energy efficiency\n"
-                "• Water consumption patterns\n"
-                "• Transportation impact\n"
-                "• Overall carbon footprint"
-            )
-            
-        except Exception as e:
-            return f"I apologize, but I encountered an error while processing your request: {str(e)}"

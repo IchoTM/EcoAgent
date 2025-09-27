@@ -57,15 +57,20 @@ def init_agent():
         st.session_state.agent_initialized = True
 
 def show_home():
-    st.write("Welcome to EcoAgent! Get started by initializing the agent and exploring the different features.")
+    st.write("Welcome to EcoAgent! 🌱")
     
-    if not st.session_state.agent_initialized:
-        if st.button("Initialize Agent", key="init_agent_btn"):
-            with st.spinner("Initializing agent..."):
-                init_agent()
-            st.success("Agent initialized successfully!")
-    else:
-        st.success("Agent is running!")
+    # Show welcome content
+    st.markdown("""
+    ### Get Started
+    1. View your sustainability metrics on the **Dashboard**
+    2. Input your consumption data in the **Data Input** section
+    3. Analyze your environmental impact in the **Analytics** tab
+    
+    Our AI agent is ready to help you understand and improve your environmental impact!
+    """)
+    
+    if st.session_state.agent_initialized:
+        st.success("AI agent is running and ready to assist you! 🤖")
 
 def calculate_metrics(data):
     """Calculate sustainability metrics from input data"""
@@ -409,6 +414,12 @@ def show_agent_testing():
 @require_auth
 def show_protected_content():
     """Show the main application content for authenticated users"""
+    # Initialize agent if not already initialized
+    if not st.session_state.agent_initialized:
+        with st.spinner("Initializing AI agent..."):
+            init_agent()
+        st.success("AI agent initialized successfully!")
+    
     # Navigation
     selected_page = st.sidebar.radio(
         "Navigation",

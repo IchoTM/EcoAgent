@@ -11,6 +11,8 @@ import plotly.express as px
 import plotly.graph_objects as go
 import streamlit as st
 from agent_core import EcoAgent, SustainabilityRequest
+from auth import init_auth, require_auth
+from database import ConsumptionData, get_session
 
 # Configure page
 st.set_page_config(
@@ -40,6 +42,12 @@ def init_session_state():
         st.session_state.current_page = "Home"
     if 'sustainability_results' not in st.session_state:
         st.session_state.sustainability_results = None
+    if 'login_initialized' not in st.session_state:
+        st.session_state.login_initialized = False
+    if 'db_session' not in st.session_state:
+        st.session_state.db_session = None
+    if 'last_auth_code' not in st.session_state:
+        st.session_state.last_auth_code = None
 
 def init_agent():
     """Initialize the FetchAI agent"""
@@ -89,12 +97,34 @@ def calculate_metrics(data):
         "water_delta": water_delta
     }
 
+def load_user_data():
+    """Load user's consumption data from database"""
+    session = get_session()
+    data = (session.query(ConsumptionData)
+            .filter_by(user_id=st.session_state.db_user_id)
+            .order_by(ConsumptionData.timestamp.desc())
+            .all())
+    return data
+
 def show_dashboard():
     st.header("Sustainability Dashboard")
     
-    if st.session_state.sustainability_results:
+    # Load historical data
+    historical_data = load_user_data()
+    
+    if historical_data:
         try:
-            metrics = calculate_metrics(st.session_state.sustainability_results)
+            # Get latest data for metrics
+            latest_data = historical_data[0]
+            metrics = calculate_metrics({
+                "electricity": latest_data.electricity,
+                "gas": latest_data.gas,
+                "water": latest_data.water,
+                "car_miles": latest_data.car_miles,
+                "public_transport": latest_data.public_transport,
+                "diet": latest_data.diet,
+                "household_size": latest_data.household_size
+            })
             
             col1, col2, col3 = st.columns(3)
             with col1:
@@ -211,10 +241,25 @@ def show_data_input():
         submitted = st.form_submit_button("Calculate Impact")
         if submitted:
             try:
-                # Create test request
+                # Save to database
+                session = get_session()
+                consumption_data = ConsumptionData(
+                    user_id=st.session_state.db_user_id,
+                    electricity=electricity,
+                    gas=gas,
+                    water=water,
+                    car_miles=car_miles,
+                    public_transport=public_transport,
+                    diet=diet,
+                    household_size=household_size
+                )
+                session.add(consumption_data)
+                session.commit()
+                
+                # Create request for agent
                 request = SustainabilityRequest(
                     query_type="analyze",
-                    user_id="test_user",
+                    user_id=st.session_state.user['auth0_id'],
                     data={
                         "electricity": electricity,
                         "gas": gas,
@@ -318,26 +363,45 @@ def show_analytics():
     else:
         st.warning("No data available. Please submit your sustainability data first.")
 
-def main():
-    init_session_state()
-    
-    # Sidebar
+def show_agent_testing():
+    """Show the agent testing interface in the sidebar"""
     with st.sidebar:
-        st.title("🌱 EcoAgent")
-        selected_page = st.radio(
-            "Navigation",
-            ["Home", "Dashboard", "Data Input", "Analytics"],
-            key="nav"
-        )
-        
-        # Agent status indicator
         st.divider()
-        if st.session_state.agent_initialized:
-            st.success("Agent Status: Running")
-        else:
-            st.warning("Agent Status: Not Initialized")
+        with st.expander("Agent Testing"):
+            query_type = st.selectbox(
+                "Query Type",
+                ["sustainability_check", "eco_tips", "carbon_footprint"]
+            )
+            
+            if st.button("Send Query", key="send_query_btn"):
+                try:
+                    request = SustainabilityRequest(
+                        query_type=query_type,
+                        user_id=st.session_state.user['auth0_id'],
+                        data={"timestamp": str(datetime.now())}
+                    )
+                    st.info("Query sent! Response handling coming soon...")
+                except Exception as e:
+                    st.error(f"Error sending query: {str(e)}")
+
+@require_auth
+def show_protected_content():
+    """Show the main application content for authenticated users"""
+    # Navigation
+    selected_page = st.sidebar.radio(
+        "Navigation",
+        ["Home", "Dashboard", "Data Input", "Analytics"],
+        key="nav"
+    )
     
-    # Main content
+    # Agent status indicator
+    st.sidebar.divider()
+    if st.session_state.agent_initialized:
+        st.sidebar.success("Agent Status: Running")
+    else:
+        st.sidebar.warning("Agent Status: Not Initialized")
+    
+    # Show selected page content
     st.title(f"EcoAgent - {selected_page}")
     
     if selected_page == "Home":
@@ -348,27 +412,24 @@ def main():
         show_data_input()
     elif selected_page == "Analytics":
         show_analytics()
-        
-    # Test interface (available on all pages when agent is running)
+    
+    # Show agent testing interface if agent is initialized
     if st.session_state.agent_initialized:
-        with st.sidebar:
-            st.divider()
-            with st.expander("Agent Testing"):
-                query_type = st.selectbox(
-                    "Query Type",
-                    ["sustainability_check", "eco_tips", "carbon_footprint"]
-                )
-                
-                if st.button("Send Query", key="send_query_btn"):
-                    try:
-                        request = SustainabilityRequest(
-                            query_type=query_type,
-                            user_id="test_user",
-                            data={"timestamp": str(datetime.now())}
-                        )
-                        st.info("Query sent! Response handling coming soon...")
-                    except Exception as e:
-                        st.error(f"Error sending query: {str(e)}")
+        show_agent_testing()
+
+def main():
+    # Initialize session and auth
+    init_session_state()
+    init_auth()
+    
+    # Sidebar title
+    st.sidebar.title("🌱 EcoAgent")
+    
+    if "user" in st.session_state:
+        show_protected_content()
+    else:
+        st.title("Welcome to EcoAgent! 🌱")
+        st.write("Please log in to access your sustainability dashboard.")
 
 if __name__ == "__main__":
     main()

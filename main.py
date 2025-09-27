@@ -48,6 +48,8 @@ def init_session_state():
         st.session_state.db_session = None
     if 'last_auth_code' not in st.session_state:
         st.session_state.last_auth_code = None
+    if 'chat_messages' not in st.session_state:
+        st.session_state.chat_messages = []
 
 def init_agent():
     """Initialize the FetchAI agent"""
@@ -306,6 +308,71 @@ def show_data_input():
             except Exception as e:
                 st.error(f"Error submitting data: {str(e)}")
 
+def show_chat():
+    """Show the AI chat interface"""
+    st.header("Chat with EcoAgent")
+    
+    # Initialize the chat messages if not already done
+    if not st.session_state.chat_messages:
+        st.session_state.chat_messages = [
+            {"role": "assistant", "content": "Hello! I'm your EcoAgent AI assistant. I can help you understand your environmental impact and suggest ways to reduce your carbon footprint. What would you like to know?"}
+        ]
+    
+    # Display chat messages
+    for message in st.session_state.chat_messages:
+        with st.chat_message(message["role"]):
+            st.write(message["content"])
+    
+    # Get user input
+    if prompt := st.chat_input("Ask about reducing your carbon footprint..."):
+        # Add user message to chat history
+        st.session_state.chat_messages.append({"role": "user", "content": prompt})
+        
+        # Show user message immediately
+        with st.chat_message("user"):
+            st.write(prompt)
+        
+        # Get user's latest data for context
+        historical_data = load_user_data()
+        latest_data = historical_data[0] if historical_data else None
+        
+        try:
+            # Create the sustainability request
+            request = SustainabilityRequest(
+                query_type="chat",
+                user_id=st.session_state.user['auth0_id'],
+                message=prompt,
+                data={
+                    "latest_data": {
+                        "electricity": latest_data.electricity if latest_data else None,
+                        "gas": latest_data.gas if latest_data else None,
+                        "water": latest_data.water if latest_data else None,
+                        "car_miles": latest_data.car_miles if latest_data else None,
+                        "public_transport": latest_data.public_transport if latest_data else None,
+                        "diet": latest_data.diet if latest_data else None,
+                        "household_size": latest_data.household_size if latest_data else None
+                    } if latest_data else None
+                }
+            )
+            
+            # Show thinking message
+            with st.chat_message("assistant"):
+                with st.spinner("Thinking..."):
+                    # Process the request through the agent
+                    response = st.session_state.fetchai_agent.process_request(request)
+                    
+                    if response and response.status == "success" and response.message:
+                        message = response.message
+                    else:
+                        message = "I apologize, but I'm having trouble processing your request. Please try again."
+                    
+                    # Add assistant's response to chat history
+                    st.session_state.chat_messages.append({"role": "assistant", "content": message})
+                    st.write(message)
+                    
+        except Exception as e:
+            st.error(f"Error processing chat: {str(e)}")
+
 def show_analytics():
     st.header("Sustainability Analytics")
     
@@ -423,7 +490,7 @@ def show_protected_content():
     # Navigation
     selected_page = st.sidebar.radio(
         "Navigation",
-        ["Home", "Dashboard", "Data Input", "Analytics"],
+        ["Home", "Dashboard", "Data Input", "Analytics", "AI Chat"],
         key="nav"
     )
     
@@ -445,6 +512,8 @@ def show_protected_content():
         show_data_input()
     elif selected_page == "Analytics":
         show_analytics()
+    elif selected_page == "AI Chat":
+        show_chat()
     
     # Show agent testing interface if agent is initialized
     if st.session_state.agent_initialized:

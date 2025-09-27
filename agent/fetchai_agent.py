@@ -63,28 +63,95 @@ class FetchAIAgent:
 
     async def _analyze_sustainability(self, data: SustainabilityData) -> SustainabilityResponse:
         """Analyze sustainability data and generate recommendations"""
+        # National averages (monthly)
+        AVG_ELECTRICITY = 877  # kWh per household
+        AVG_GAS = 63  # therms per household
+        AVG_WATER = 7000  # gallons per household
+        AVG_CAR_MILES = 1000  # miles
+        AVG_PUBLIC_TRANSPORT = 150  # miles
+
         # Constants for calculations
         ELECTRICITY_CO2_PER_KWH = 0.92  # lbs CO2 per kWh
         GAS_CO2_PER_THERM = 11.7  # lbs CO2 per therm
         CAR_CO2_PER_MILE = 0.404  # lbs CO2 per mile
         PUBLIC_TRANSPORT_CO2_PER_MILE = 0.14  # lbs CO2 per mile
         
-        # Calculate carbon footprint
-        total_co2 = (
+        # Calculate carbon footprint with diet adjustments
+        base_co2 = (
             data.electricity * ELECTRICITY_CO2_PER_KWH +
             data.gas * GAS_CO2_PER_THERM +
             data.car_miles * CAR_CO2_PER_MILE +
             data.public_transport * PUBLIC_TRANSPORT_CO2_PER_MILE
         )
         
+        # Diet impact factors
+        diet_multipliers = {
+            'Meat Daily': 1.0,
+            'Meat Weekly': 0.8,
+            'Vegetarian': 0.6,
+            'Vegan': 0.4
+        }
+        
+        # Apply diet multiplier
+        total_co2 = base_co2 * diet_multipliers.get(data.diet_type, 1.0)
+        
         # Convert to tons
         carbon_footprint = total_co2 / 2000
         
-        # Calculate energy score (simplified)
-        energy_score = self._calculate_energy_score(data)
+        # Calculate relative metrics
+        electricity_vs_avg = ((data.electricity - AVG_ELECTRICITY) / AVG_ELECTRICITY) * 100
+        gas_vs_avg = ((data.gas - AVG_GAS) / AVG_GAS) * 100
+        car_vs_avg = ((data.car_miles - AVG_CAR_MILES) / AVG_CAR_MILES) * 100
         
-        # Generate recommendations
-        recommendations = self._generate_recommendations(data)
+        # Calculate comprehensive energy score
+        energy_score = 100
+        
+        # Deduct points based on usage compared to averages
+        if data.electricity > AVG_ELECTRICITY:
+            energy_score -= min(30, int(30 * (data.electricity/AVG_ELECTRICITY - 1)))
+        if data.gas > AVG_GAS:
+            energy_score -= min(20, int(20 * (data.gas/AVG_GAS - 1)))
+            
+        # Bonus points for good transportation habits
+        transport_ratio = data.public_transport / (data.car_miles + 0.1)
+        if transport_ratio > 0.5:
+            energy_score += min(10, int(10 * transport_ratio))
+            
+        # Diet impact
+        diet_scores = {'Vegan': 10, 'Vegetarian': 7, 'Meat Weekly': 3, 'Meat Daily': 0}
+        energy_score += diet_scores.get(data.diet_type, 0)
+        
+        # Ensure score stays within bounds
+        energy_score = max(0, min(100, energy_score))
+        
+        # Generate targeted recommendations
+        recommendations = []
+        
+        # Electricity recommendations
+        if electricity_vs_avg > 10:
+            savings = (data.electricity - AVG_ELECTRICITY) * 0.12  # Assume $0.12 per kWh
+            recommendations.append({
+                'title': 'High Electricity Usage Detected',
+                'description': f'Your electricity usage is {electricity_vs_avg:.1f}% above average.',
+                'impact': f'Potential savings of ${savings:.2f}/month by reaching average consumption.'
+            })
+            
+        # Transportation recommendations
+        if car_vs_avg > 20:
+            car_impact = (data.car_miles - AVG_CAR_MILES) * CAR_CO2_PER_MILE / 2000
+            recommendations.append({
+                'title': 'Consider Alternative Transportation',
+                'description': f'Your car usage is {car_vs_avg:.1f}% above average.',
+                'impact': f'You could reduce CO2 emissions by {car_impact:.2f} tons by reaching average usage.'
+            })
+            
+        # Diet recommendations
+        if data.diet_type == 'Meat Daily':
+            recommendations.append({
+                'title': 'Explore Plant-Based Options',
+                'description': 'Daily meat consumption has a significant environmental impact.',
+                'impact': 'Switching to weekly meat consumption could reduce your carbon footprint by 20%.'
+            })
         
         return SustainabilityResponse(
             carbon_footprint=carbon_footprint,

@@ -6,17 +6,19 @@ from agent.agentmail_client import AgentMailClient
 from config.config import load_config
 import plotly.express as px
 
-# Initialize clients
-agentmail_client = AgentMailClient()
+# Load configuration and initialize clients
+config = load_config()
+agentmail_client = AgentMailClient(api_key=config.get('AGENTMAIL_API_KEY'))
 
-# Initialize Fetch.ai agent
-from agent.fetchai_agent import FetchAIAgent
-fetchai_agent = FetchAIAgent()
+# Initialize Fetch.ai agent lazily
+fetchai_agent = None
 
-# Start the Fetch.ai agent in the background
-import threading
-agent_thread = threading.Thread(target=fetchai_agent.start, daemon=True)
-agent_thread.start()
+def get_fetchai_agent():
+    global fetchai_agent
+    if fetchai_agent is None:
+        from agent.fetchai_agent import FetchAIAgent
+        fetchai_agent = FetchAIAgent()
+    return fetchai_agent
 
 # Page configuration
 st.set_page_config(
@@ -97,7 +99,8 @@ def show_data_input():
             
             try:
                 # Get analysis from Fetch.ai agent
-                response = asyncio.run(fetchai_agent._analyze_sustainability(query.data))
+                agent = get_fetchai_agent()
+                response = asyncio.run(agent._analyze_sustainability(query.data))
                 
                 # Store results in session state
                 st.session_state.sustainability_results = response

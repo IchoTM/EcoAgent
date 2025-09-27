@@ -2,6 +2,7 @@ import asyncio
 from agent.eco_agent import EcoAgent
 from agent.fetchai_agent import SustainabilityData, SustainabilityQuery
 from agent.agentmail_client import AgentMailClient
+from config.config import load_config
 
 async def test_eco_agent():
     print("Testing EcoAgent implementation...")
@@ -9,9 +10,10 @@ async def test_eco_agent():
     # Test 1: AgentMail Integration
     print("\n1. Testing AgentMail Integration:")
     try:
-        client = AgentMailClient()
+        config = load_config()
+        client = AgentMailClient(api_key=config['AGENTMAIL_API_KEY'])
         await client.send_report(
-            "test@example.com",
+            "test@agentmail.to",
             {
                 "name": "Test User",
                 "carbon_footprint": 2.5,

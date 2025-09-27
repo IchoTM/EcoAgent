@@ -9,43 +9,23 @@ from config.email_templates import (
 
 class AgentMailClient:
     def __init__(self, api_key: str):
+        self.email = "ecoagent@agentmail.to"
         self.client = AsyncAgentMail(api_key=api_key)
-        self.inbox = None
-        
-    async def _ensure_inbox(self):
-        """Ensure we have an inbox created"""
-        if not self.inbox:
-            try:
-                # Try to create a new inbox
-                self.inbox = await self.client.inboxes.create()
-                print(f"Created new inbox with ID: {self.inbox.inbox_id}")
-            except Exception as e:
-                print(f"Error creating inbox: {str(e)}")
-                raise
-        return self.inbox
-        
+    
     async def _send_message(self, to: str, subject: str, body: str):
         """Send a message using AgentMail"""
-        try:
-            # Basic email validation
-            if not '@' in to or to.endswith('@example.com'):
-                raise ValueError(f"Invalid email address: {to}")
-                
-            # Ensure we have an inbox
-            inbox = await self._ensure_inbox()
-            
-            # Send message through our inbox
-            sent_message = await self.client.inboxes.messages.send(
-                inbox_id=inbox.inbox_id,  # Use inbox_id from the documentation
-                to=to,
-                subject=subject,
-                text=body,  # Send as plain text
-                html=f"<div>{body}</div>"  # Wrap in div for HTML formatting
-            )
-            return sent_message
-        except Exception as e:
-            print(f"Error sending message: {str(e)}")
-            raise
+        # First, create or get an inbox for the user
+        inbox = await self.client.inboxes.create(
+            name=f"EcoAgent Inbox - {to}"
+        )
+        
+        # Then send the message to that inbox
+        await self.client.messages.create(
+            inbox_id=inbox.id,
+            subject=subject,
+            body=body,
+            to=to
+        )
     
     async def send_report(self, user_email: str, report_data: dict):
         """Send a sustainability report email"""

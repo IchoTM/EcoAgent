@@ -25,27 +25,22 @@ class SustainabilityResponse(Model):
 # Create the protocol for sustainability queries
 sustainability_protocol = Protocol("Sustainability")
 
-# Create a single agent instance
-agent = Agent(
-    name="eco_agent",
-    port=8000,
-    endpoint=["http://localhost:8000/submit"]
-)
-
-print(f"EcoAgent initialized with address: {agent.address}")
-
-@agent.on_event("startup")
-async def startup(ctx: Context):
-    print(f"EcoAgent is starting up and listening on port 8000...")
-    print(f"Ready to process sustainability queries!")
-
-@agent.on_event("shutdown")
-async def shutdown(ctx: Context):
-    print("EcoAgent is shutting down...")
-
 class FetchAIAgent:
     def __init__(self, seed: str = "eco_agent_seed"):
-        self.agent = agent  # Use the global agent instance
+        self.agent = Agent(
+            name="eco_agent",
+            port=8000,
+            endpoint=["http://localhost:8000/submit"]
+        )
+        
+        @self.agent.on_event("startup")
+        async def startup(ctx: Context):
+            print(f"EcoAgent is starting up and listening on port 8000...")
+            print(f"Ready to process sustainability queries!")
+
+        @self.agent.on_event("shutdown")
+        async def shutdown(ctx: Context):
+            print("EcoAgent is shutting down...")
         
         # Fund the agent if needed
         fund_agent_if_low(self.agent.wallet.address())

@@ -148,14 +148,22 @@ def show_dashboard():
                 
             # Add visualization
             st.subheader("Resource Usage Breakdown")
-            data = st.session_state.sustainability_results
+            latest_data_dict = {
+                "electricity": latest_data.electricity,
+                "gas": latest_data.gas,
+                "water": latest_data.water,
+                "car_miles": latest_data.car_miles,
+                "public_transport": latest_data.public_transport,
+                "diet": latest_data.diet,
+                "household_size": latest_data.household_size
+            }
             fig = go.Figure()
             
             # Energy usage chart
             fig.add_trace(go.Bar(
                 name="Electricity",
                 y=["Energy"],
-                x=[float(data["electricity"])],
+                x=[float(latest_data_dict["electricity"])],
                 orientation='h',
                 marker_color='#1f77b4'
             ))
@@ -163,7 +171,7 @@ def show_dashboard():
             fig.add_trace(go.Bar(
                 name="Gas",
                 y=["Energy"],
-                x=[float(data["gas"])],
+                x=[float(latest_data_dict["gas"])],
                 orientation='h',
                 marker_color='#ff7f0e'
             ))
@@ -241,17 +249,25 @@ def show_data_input():
         submitted = st.form_submit_button("Calculate Impact")
         if submitted:
             try:
+                # Use existing session from auth if available, or create new one
+                session = getattr(st.session_state, 'db_session', None) or get_session()
+                
+                # Create the data dictionary
+                data = {
+                    "electricity": electricity,
+                    "gas": gas,
+                    "water": water,
+                    "car_miles": car_miles,
+                    "public_transport": public_transport,
+                    "diet": diet,
+                    "household_size": household_size,
+                    "timestamp": str(datetime.now())
+                }
+                
                 # Save to database
-                session = get_session()
                 consumption_data = ConsumptionData(
                     user_id=st.session_state.db_user_id,
-                    electricity=electricity,
-                    gas=gas,
-                    water=water,
-                    car_miles=car_miles,
-                    public_transport=public_transport,
-                    diet=diet,
-                    household_size=household_size
+                    **{k: v for k, v in data.items() if k != 'timestamp'}
                 )
                 session.add(consumption_data)
                 session.commit()
@@ -260,18 +276,11 @@ def show_data_input():
                 request = SustainabilityRequest(
                     query_type="analyze",
                     user_id=st.session_state.user['auth0_id'],
-                    data={
-                        "electricity": electricity,
-                        "gas": gas,
-                        "water": water,
-                        "car_miles": car_miles,
-                        "public_transport": public_transport,
-                        "diet": diet,
-                        "household_size": household_size,
-                        "timestamp": str(datetime.now())
-                    }
+                    data=data
                 )
-                st.session_state.sustainability_results = request.data
+                
+                # Store in session state (though we'll primarily use database for persistence)
+                st.session_state.sustainability_results = data
                 
                 # Show immediate feedback
                 st.success("Data submitted successfully!")
@@ -295,8 +304,21 @@ def show_data_input():
 def show_analytics():
     st.header("Sustainability Analytics")
     
-    if st.session_state.sustainability_results:
-        data = st.session_state.sustainability_results
+    # Load user data from database
+    historical_data = load_user_data()
+    
+    if historical_data:
+        # Get latest data
+        latest_data = historical_data[0]
+        data = {
+            "electricity": latest_data.electricity,
+            "gas": latest_data.gas,
+            "water": latest_data.water,
+            "car_miles": latest_data.car_miles,
+            "public_transport": latest_data.public_transport,
+            "diet": latest_data.diet,
+            "household_size": latest_data.household_size
+        }
         metrics = calculate_metrics(data)
         
         # Resource Usage Analysis

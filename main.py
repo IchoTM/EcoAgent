@@ -3,6 +3,7 @@ import asyncio
 from agent.eco_agent import EcoAgent
 from agent.sustainability_analyzer import SustainabilityAnalyzer
 from agent.agentmail_client import AgentMailClient
+from agent.fetchai_agent import SustainabilityData, SustainabilityQuery
 from config.config import load_config
 import plotly.express as px
 
@@ -82,25 +83,40 @@ def show_data_input():
         submitted = st.form_submit_button("Calculate Impact")
         if submitted:
             # Create sustainability data model
-            sustainability_data = {
-                "electricity": electricity,
-                "gas": gas,
-                "car_miles": car_miles,
-                "public_transport": public_transport,
-                "diet_type": diet
-            }
-            
-            # Create query for the Fetch.ai agent
-            query = SustainabilityQuery(
-                query_type="analyze",
-                user_id=st.session_state.get("user_id", "anonymous"),
-                data=SustainabilityData(**sustainability_data)
-            )
+            try:
+                sustainability_data = SustainabilityData(
+                    electricity=float(electricity),
+                    gas=float(gas),
+                    car_miles=float(car_miles),
+                    public_transport=float(public_transport),
+                    diet_type=diet
+                )
+                
+                # Create query for the Fetch.ai agent
+                query = SustainabilityQuery(
+                    query_type="analyze",
+                    user_id=st.session_state.get("user_id", "anonymous"),
+                    data=sustainability_data
+                )
+            except ValueError as e:
+                st.error(f"Please enter valid numbers for all fields: {str(e)}")
+                return
             
             try:
                 # Get analysis from Fetch.ai agent
                 agent = get_fetchai_agent()
-                response = asyncio.run(agent._analyze_sustainability(query.data))
+                
+                # Create a new event loop in this thread
+                loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(loop)
+                
+                try:
+                    # Run the analysis in the new event loop
+                    response = loop.run_until_complete(agent._analyze_sustainability(query.data))
+                finally:
+                    # Clean up the event loop
+                    loop.close()
+                    asyncio.set_event_loop(None)
                 
                 # Store results in session state
                 st.session_state.sustainability_results = response
@@ -121,14 +137,21 @@ def show_data_input():
                 
                 # Send report via AgentMail if email is configured
                 if st.session_state.get("email"):
-                    asyncio.run(agentmail_client.send_report(
-                        st.session_state.email,
-                        {
-                            "carbon_footprint": response.carbon_footprint,
-                            "energy_score": response.energy_score,
-                            "recommendations": response.recommendations
-                        }
-                    ))
+                    # Create a new event loop for sending email
+                    email_loop = asyncio.new_event_loop()
+                    asyncio.set_event_loop(email_loop)
+                    try:
+                        email_loop.run_until_complete(agentmail_client.send_report(
+                            st.session_state.email,
+                            {
+                                "carbon_footprint": response.carbon_footprint,
+                                "energy_score": response.energy_score,
+                                "recommendations": response.recommendations
+                            }
+                        ))
+                    finally:
+                        email_loop.close()
+                        asyncio.set_event_loop(None)
             except Exception as e:
                 st.error(f"Error analyzing data: {str(e)}")
 
@@ -168,31 +191,38 @@ def show_settings():
                     "user_id": email.lower()  # Using email as user_id for now
                 }
                 
-                # Create async tasks for email settings
-                async def update_email_settings():
-                    if weekly_report:
-                        await agentmail_client.schedule_eco_tips(
-                            email,
-                            {**preferences, "frequency": "weekly"}
-                        )
-                    
-                    if eco_tips:
-                        await agentmail_client.schedule_eco_tips(
-                            email,
-                            {**preferences, "frequency": "daily"}
-                        )
-                    
-                    if reminder_frequency != "Never":
-                        await agentmail_client.create_campaign(
-                            f"eco_reminders_{email}",
-                            {
-                                "email": email,
-                                "frequency": reminder_frequency.lower()
-                            }
-                        )
+                # Create and run async tasks for email settings
+                settings_loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(settings_loop)
                 
-                # Run async tasks
-                asyncio.run(update_email_settings())
+                try:
+                    async def update_email_settings():
+                        if weekly_report:
+                            await agentmail_client.schedule_eco_tips(
+                                email,
+                                {**preferences, "frequency": "weekly"}
+                            )
+                        
+                        if eco_tips:
+                            await agentmail_client.schedule_eco_tips(
+                                email,
+                                {**preferences, "frequency": "daily"}
+                            )
+                        
+                        if reminder_frequency != "Never":
+                            await agentmail_client.create_campaign(
+                                f"eco_reminders_{email}",
+                                {
+                                    "email": email,
+                                    "frequency": reminder_frequency.lower()
+                                }
+                            )
+                    
+                    # Run the async tasks in the new event loop
+                    settings_loop.run_until_complete(update_email_settings())
+                finally:
+                    settings_loop.close()
+                    asyncio.set_event_loop(None)
                 
                 st.success("Email preferences saved successfully! You'll start receiving your personalized eco-updates soon.")
             except Exception as e:

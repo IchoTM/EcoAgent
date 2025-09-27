@@ -2,6 +2,7 @@
 EcoAgent core functionality
 """
 import asyncio
+import random
 from typing import Optional
 from uagents import Agent, Context, Model
 
@@ -91,8 +92,20 @@ class EcoAgent:
         """Process a request synchronously and return the response"""
         try:
             if request.query_type == "chat":
-                # Generate response based on request type and user data
-                message = self._generate_chat_response(request.message, request.data)
+                # Add artificial thinking time with a progress spinner
+                import time
+                import streamlit as st
+                
+                with st.spinner("🤔 Analyzing your sustainability data..."):
+                    # Add randomized thinking time between 1-2 seconds
+                    time.sleep(1 + random.random())
+                    
+                    # Generate response based on request type and user data
+                    message = self._generate_chat_response(request.message, request.data)
+                    
+                    # Add slight pause before showing response
+                    time.sleep(0.5)
+                    
                 return SustainabilityResponse(
                     status="success",
                     message=message,

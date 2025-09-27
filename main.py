@@ -5,6 +5,7 @@ Main application entry point
 """
 
 import asyncio
+import time
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
 import plotly.express as px
@@ -310,21 +311,26 @@ def show_data_input():
 
 def show_chat():
     """Show the AI chat interface"""
-    st.header("Chat with EcoAgent")
+    st.header("Chat with EcoAgent 🤖")
     
     # Initialize the chat messages if not already done
     if not st.session_state.chat_messages:
         st.session_state.chat_messages = [
-            {"role": "assistant", "content": "Hello! I'm your EcoAgent AI assistant. I can help you understand your environmental impact and suggest ways to reduce your carbon footprint. What would you like to know?"}
+            {"role": "assistant", "content": "👋 Hello! I'm your EcoAgent AI assistant. I'm here to help you understand your environmental impact and discover personalized ways to live more sustainably. What would you like to know about?"}
         ]
     
-    # Display chat messages
-    for message in st.session_state.chat_messages:
-        with st.chat_message(message["role"]):
-            st.write(message["content"])
+    # Create a clean chat interface
+    chat_container = st.container()
     
-    # Get user input
-    if prompt := st.chat_input("Ask about reducing your carbon footprint..."):
+    # Display chat messages with typing indicators
+    with chat_container:
+        for message in st.session_state.chat_messages:
+            with st.chat_message(message["role"], avatar="🤖" if message["role"] == "assistant" else "👤"):
+                st.write(message["content"])
+    
+    # Get user input with a more engaging prompt
+    prompt = st.chat_input("💭 Ask me about your sustainability impact...")
+    if prompt:
         # Add user message to chat history
         st.session_state.chat_messages.append({"role": "user", "content": prompt})
         
@@ -355,20 +361,34 @@ def show_chat():
                 }
             )
             
-            # Show thinking message
-            with st.chat_message("assistant"):
-                with st.spinner("Thinking..."):
-                    # Process the request through the agent
-                    response = st.session_state.fetchai_agent.process_request(request)
-                    
-                    if response and response.status == "success" and response.message:
-                        message = response.message
-                    else:
-                        message = "I apologize, but I'm having trouble processing your request. Please try again."
-                    
-                    # Add assistant's response to chat history
-                    st.session_state.chat_messages.append({"role": "assistant", "content": message})
-                    st.write(message)
+            # Show thinking message with dynamic loading states
+            with st.chat_message("assistant", avatar="🤖"):
+                thinking_placeholder = st.empty()
+                
+                # Show progressive thinking states
+                for state in ["🤔 Analyzing your data...", 
+                            "📊 Calculating metrics...",
+                            "🌱 Generating eco-friendly insights..."]:
+                    thinking_placeholder.write(state)
+                    time.sleep(0.7)  # Brief pause between states
+                
+                # Process the request through the agent
+                response = st.session_state.fetchai_agent.process_request(request)
+                
+                if response and response.status == "success" and response.message:
+                    message = response.message
+                else:
+                    message = "I apologize, but I'm having trouble processing your request. Please try again."
+                
+                # Clear thinking indicator and show response with typing effect
+                thinking_placeholder.empty()
+                
+                # Add assistant's response to chat history
+                st.session_state.chat_messages.append({"role": "assistant", "content": message})
+                st.write(message)
+                
+                # Add a subtle success sound effect
+                st.balloons()
                     
         except Exception as e:
             st.error(f"Error processing chat: {str(e)}")

@@ -19,8 +19,160 @@ from database import ConsumptionData, get_session
 st.set_page_config(
     page_title="EcoAgent - Your AI Sustainability Assistant",
     page_icon="🌱",
-    layout="wide"
+    layout="wide",
+    initial_sidebar_state="expanded"
 )
+
+# Custom CSS styling
+st.markdown("""
+    <style>
+        /* Main content styling */
+        .main {
+            padding: 2rem;
+            background-color: #1a1a1a;
+            color: #ffffff;
+        }
+        
+        /* Card styling */
+        div[data-testid="stMetricValue"] {
+            font-size: 2rem !important;
+            font-weight: 600 !important;
+            color: #1f77b4 !important;
+        }
+        
+        /* Header styling */
+        h1, h2, h3 {
+            color: #ffffff;
+            font-family: 'Segoe UI', sans-serif;
+        }
+        
+        /* Sidebar styling */
+        section[data-testid="stSidebar"] {
+            background-color: #2c3e50;
+            padding: 2rem;
+        }
+        section[data-testid="stSidebar"] .stRadio label {
+            color: #ffffff !important;
+            font-weight: 500;
+            padding: 0.5rem 1rem;
+            border-radius: 5px;
+            transition: all 0.3s;
+            cursor: pointer;
+        }
+        section[data-testid="stSidebar"] .stRadio input:checked + label {
+            background-color: #1f77b4;
+        }
+        section[data-testid="stSidebar"] h1 {
+            color: white !important;
+            padding: 1rem 0;
+        }
+        
+        /* Main content adjustments */
+        .main > div {
+            padding-top: 1rem !important;
+        }
+        
+        /* Button styling */
+        .stButton button {
+            background-color: #1f77b4;
+            color: white;
+            border-radius: 5px;
+            padding: 0.5rem 1rem;
+            border: none;
+            transition: background-color 0.3s;
+        }
+        .stButton button:hover {
+            background-color: #2c3e50;
+        }
+        
+        /* Chart styling */
+        div[data-testid="stPlotlyChart"] {
+            background-color: white;
+            border-radius: 10px;
+            padding: 1rem;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        /* Container styling */
+        div[data-testid="stContainer"] {
+            background-color: #2c2c2c;
+            border-radius: 10px;
+            padding: 2rem;
+            margin: 1rem 0;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.2);
+            color: #ffffff;
+        }
+        
+        /* Success/Info/Warning message styling */
+        div[data-testid="stSuccessMessage"] {
+            background-color: rgba(40, 167, 69, 0.2) !important;
+            border-left: 5px solid #28a745;
+            color: #ffffff !important;
+        }
+        div[data-testid="stInfoMessage"] {
+            background-color: rgba(23, 162, 184, 0.2) !important;
+            border-left: 5px solid #17a2b8;
+            color: #ffffff !important;
+        }
+        div[data-testid="stWarningMessage"] {
+            background-color: rgba(255, 193, 7, 0.2) !important;
+            border-left: 5px solid #ffc107;
+            color: #ffffff !important;
+        }
+        
+        /* Table styling */
+        div[data-testid="stTable"] {
+            background-color: #2c2c2c;
+            border-radius: 10px;
+            padding: 1rem;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.2);
+            color: #ffffff;
+        }
+        
+        /* Chart styling improvements */
+        div[data-testid="stPlotlyChart"] {
+            background-color: #2c2c2c !important;
+            border-radius: 10px;
+            padding: 1rem;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.2);
+            margin: 1rem auto !important;
+            max-width: 100% !important;
+        }
+        div[data-testid="stPlotlyChart"] > div {
+            margin: 0 auto !important;
+        }
+        
+        /* Improved button styling */
+        .stButton button {
+            background-color: #1f77b4 !important;
+            color: white !important;
+            border-radius: 5px !important;
+            padding: 0.5rem 1.5rem !important;
+            border: none !important;
+            transition: all 0.3s !important;
+            font-weight: 500 !important;
+        }
+        .stButton button:hover {
+            background-color: #2c3e50 !important;
+            transform: translateY(-2px) !important;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2) !important;
+        }
+        
+        /* Dark mode text inputs */
+        .stTextInput input {
+            background-color: #363636 !important;
+            color: #ffffff !important;
+            border: 1px solid #4a4a4a !important;
+        }
+        
+        /* Dark mode number inputs */
+        .stNumberInput input {
+            background-color: #363636 !important;
+            color: #ffffff !important;
+            border: 1px solid #4a4a4a !important;
+        }
+    </style>
+""", unsafe_allow_html=True)
 
 def run_async(func):
     """Run an async function in a new event loop"""
@@ -60,20 +212,55 @@ def init_agent():
         st.session_state.agent_initialized = True
 
 def show_home():
-    st.write("Welcome to EcoAgent! 🌱")
-    
-    # Show welcome content
+    # Create a welcoming hero section
     st.markdown("""
-    ### Get Started
-    1. View your sustainability metrics on the **Dashboard**
-    2. Input your consumption data in the **Data Input** section
-    3. Analyze your environmental impact in the **Analytics** tab
+        <div style='text-align: center; padding: 3rem 0; background-color: #f8f9fa; border-radius: 10px; margin-bottom: 2rem;'>
+            <h1 style='color: #2c3e50; font-size: 3rem; margin-bottom: 1rem;'>Welcome to EcoAgent! 🌱</h1>
+            <p style='color: #6c757d; font-size: 1.2rem; margin-bottom: 2rem;'>Your AI-powered sustainability companion</p>
+        </div>
+    """, unsafe_allow_html=True)
     
-    Our AI agent is ready to help you understand and improve your environmental impact!
-    """)
+    # Feature highlights in columns
+    col1, col2, col3 = st.columns(3)
+    
+    with col1:
+        st.markdown("""
+            <div style='background-color: white; padding: 1.5rem; border-radius: 10px; height: 200px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);'>
+                <h3 style='color: #2c3e50; margin-bottom: 1rem;'>📊 Track Progress</h3>
+                <p style='color: #6c757d;'>Monitor your sustainability metrics and environmental impact in real-time through our interactive dashboard.</p>
+            </div>
+        """, unsafe_allow_html=True)
+        
+    with col2:
+        st.markdown("""
+            <div style='background-color: white; padding: 1.5rem; border-radius: 10px; height: 200px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);'>
+                <h3 style='color: #2c3e50; margin-bottom: 1rem;'>🤖 AI Insights</h3>
+                <p style='color: #6c757d;'>Get personalized recommendations and insights from our advanced AI assistant to improve your eco-friendly habits.</p>
+            </div>
+        """, unsafe_allow_html=True)
+        
+    with col3:
+        st.markdown("""
+            <div style='background-color: white; padding: 1.5rem; border-radius: 10px; height: 200px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);'>
+                <h3 style='color: #2c3e50; margin-bottom: 1rem;'>📈 Analytics</h3>
+                <p style='color: #6c757d;'>Dive deep into your environmental data with detailed analytics and visualization tools.</p>
+            </div>
+        """, unsafe_allow_html=True)
+    
+    # Get Started section
+    st.markdown("""
+        <div style='margin-top: 3rem; padding: 2rem; background-color: white; border-radius: 10px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);'>
+            <h2 style='color: #2c3e50; margin-bottom: 1.5rem;'>Get Started</h2>
+            <ol style='color: #6c757d; font-size: 1.1rem; margin-left: 1.5rem;'>
+                <li style='margin-bottom: 1rem;'>View your sustainability metrics on the <b>Dashboard</b></li>
+                <li style='margin-bottom: 1rem;'>Input your consumption data in the <b>Data Input</b> section</li>
+                <li style='margin-bottom: 1rem;'>Analyze your environmental impact in the <b>Analytics</b> tab</li>
+            </ol>
+        </div>
+    """, unsafe_allow_html=True)
     
     if st.session_state.agent_initialized:
-        st.success("AI agent is running and ready to assist you! 🤖")
+        st.success("🤖 AI agent is initialized and ready to assist you!")
 
 def calculate_metrics(data):
     """Calculate sustainability metrics from input data"""
@@ -115,7 +302,13 @@ def load_user_data():
     return data
 
 def show_dashboard():
-    st.header("Sustainability Dashboard")
+    # Header with background
+    st.markdown("""
+        <div style='background-color: #2c3e50; padding: 2rem; border-radius: 10px; margin-bottom: 2rem;'>
+            <h1 style='color: white; margin: 0;'>Sustainability Dashboard</h1>
+            <p style='color: #a8b9cc; margin-top: 0.5rem;'>Track your environmental impact in real-time</p>
+        </div>
+    """, unsafe_allow_html=True)
     
     # Load historical data
     historical_data = load_user_data()
@@ -134,25 +327,70 @@ def show_dashboard():
                 "household_size": latest_data.household_size
             })
             
+            # Metric cards with enhanced styling
+            st.markdown("""
+                <style>
+                    .metric-card {
+                        background-color: white;
+                        padding: 1.5rem;
+                        border-radius: 10px;
+                        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+                        text-align: center;
+                    }
+                    .metric-value {
+                        font-size: 2rem;
+                        font-weight: bold;
+                        color: #1f77b4;
+                        margin: 1rem 0;
+                    }
+                    .metric-label {
+                        color: #6c757d;
+                        font-size: 1.1rem;
+                        margin-bottom: 0.5rem;
+                    }
+                    .metric-delta {
+                        font-size: 0.9rem;
+                        padding: 0.3rem 0.8rem;
+                        border-radius: 15px;
+                    }
+                    .metric-delta.positive {
+                        background-color: #d4edda;
+                        color: #155724;
+                    }
+                    .metric-delta.negative {
+                        background-color: #f8d7da;
+                        color: #721c24;
+                    }
+                </style>
+            """, unsafe_allow_html=True)
+            
             col1, col2, col3 = st.columns(3)
             with col1:
-                st.metric(
-                    label="Carbon Footprint",
-                    value=f"{metrics['carbon_footprint']:.2f} tons",
-                    delta="-0.2 tons"  # We can calculate this when we have historical data
-                )
+                st.markdown(f"""
+                    <div class="metric-card">
+                        <div class="metric-label">Carbon Footprint</div>
+                        <div class="metric-value">{metrics['carbon_footprint']:.2f} tons</div>
+                        <span class="metric-delta positive">-0.2 tons</span>
+                    </div>
+                """, unsafe_allow_html=True)
             with col2:
-                st.metric(
-                    label="Energy Score",
-                    value=f"{metrics['energy_score']}/100",
-                    delta="↑5" if metrics['energy_score'] > 50 else "↓5"
-                )
+                delta_class = "positive" if metrics['energy_score'] > 50 else "negative"
+                st.markdown(f"""
+                    <div class="metric-card">
+                        <div class="metric-label">Energy Score</div>
+                        <div class="metric-value">{metrics['energy_score']}/100</div>
+                        <span class="metric-delta {delta_class}">{"↑5" if metrics['energy_score'] > 50 else "↓5"}</span>
+                    </div>
+                """, unsafe_allow_html=True)
             with col3:
-                st.metric(
-                    label="Water Usage",
-                    value=f"{metrics['water_usage']:.1f}L/day",
-                    delta=f"{metrics['water_delta']:.0f}L"
-                )
+                delta_class = "positive" if metrics['water_delta'] < 0 else "negative"
+                st.markdown(f"""
+                    <div class="metric-card">
+                        <div class="metric-label">Water Usage</div>
+                        <div class="metric-value">{metrics['water_usage']:.1f}L/day</div>
+                        <span class="metric-delta {delta_class}">{metrics['water_delta']:.0f}L</span>
+                    </div>
+                """, unsafe_allow_html=True)
                 
             # Add visualization
             st.subheader("Resource Usage Breakdown")
@@ -188,7 +426,22 @@ def show_dashboard():
                 barmode='stack',
                 height=200,
                 margin=dict(l=0, r=0, t=0, b=0),
-                showlegend=True
+                showlegend=True,
+                paper_bgcolor='#2c2c2c',
+                plot_bgcolor='#2c2c2c',
+                font=dict(color='#ffffff'),
+                xaxis=dict(
+                    gridcolor='#404040',
+                    zerolinecolor='#404040',
+                ),
+                yaxis=dict(
+                    gridcolor='#404040',
+                    zerolinecolor='#404040',
+                ),
+                legend=dict(
+                    bgcolor='#2c2c2c',
+                    font=dict(color='#ffffff')
+                )
             )
             
             st.plotly_chart(fig, use_container_width=True)

@@ -1,17 +1,17 @@
 services:
   - type: web
-    name: mhacks25
+    name: ecoagent
     env: python
     buildCommand: pip install --no-cache-dir -r requirements.txt
-    startCommand: gunicorn app:app --bind 0.0.0.0:$PORT --workers 4
+    startCommand: gunicorn app:app --bind 0.0.0.0:$PORT --workers 4 --timeout 120
     envVars:
       - key: PYTHON_VERSION
         value: 3.12.0
       - key: FLASK_ENV
         value: production
-      - key: BASE_URL
+      - key: FLASK_SECRET_KEY
+        sync: false
+      - key: GOOGLE_API_KEY
+        sync: false
+      - key: RENDER_EXTERNAL_URL
         value: https://ecoagent-y0vt.onrender.com
-        value: max-age=31536000; includeSubDomains
-    domains:
-      - ecoagent.org
-      - www.ecoagent.org

@@ -19,7 +19,12 @@ from database import ConsumptionData, User, get_session
 
 app = Flask(__name__)
 app.secret_key = 'your-secret-key'  # Replace with a secure secret key
+
+# Initialize Auth0 client
 auth_client = Auth()
+# Ensure we have the correct domain from environment variables
+if not auth_client.domain or 'auth0.com' not in auth_client.domain:
+    raise ValueError("Invalid Auth0 domain configuration")
 
 def login_required(f):
     @wraps(f)
@@ -65,6 +70,9 @@ def calculate_user_stats(consumption_data):
 
 @app.route('/')
 def home():
+    # Clear any existing session data when arriving at home page
+    if 'user' in session:
+        session.clear()
     return render_template('login.html')
 
 @app.route('/dashboard')
@@ -169,14 +177,25 @@ def data_entry():
 
 @app.route('/logout')
 def logout():
+    # Clear the session
     session.clear()
-    # Construct Auth0 logout URL
-    params = {
-        'returnTo': url_for('home', _external=True),
-        'client_id': auth_client.client_id
-    }
-    logout_url = f"https://{auth_client.domain}/v2/logout?{urlencode(params)}"
-    return redirect(logout_url)
+    
+    try:
+        # Construct Auth0 logout URL
+        params = {
+            'returnTo': 'http://localhost:8501/',  # Include trailing slash
+            'client_id': auth_client.client_id
+        }
+        logout_url = f"https://{auth_client.domain}/v2/logout?{urlencode(params)}"
+        
+        # Log the URL we're redirecting to (for debugging)
+        app.logger.info(f"Redirecting to logout URL: {logout_url}")
+        
+        return redirect(logout_url)
+    except Exception as e:
+        # Log any errors
+        app.logger.error(f"Logout error: {str(e)}")
+        return redirect('/')
 
 @app.route('/add_consumption', methods=['POST'])
 @login_required

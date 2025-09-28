@@ -5,7 +5,7 @@ Flask Application
 """
 
 import os
-from datetime import datetime
+from datetime import datetime, timedelta
 from functools import wraps
 from dotenv import load_dotenv
 
@@ -24,6 +24,8 @@ app = Flask(__name__)
 
 # Simple session configuration
 app.secret_key = 'dev-key-123'
+app.config['SESSION_TYPE'] = 'filesystem'
+app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(minutes=30)
 
 # Session configuration
 from flask_session import Session

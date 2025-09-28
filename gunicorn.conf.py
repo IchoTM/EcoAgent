@@ -1,7 +1,7 @@
 import os
 
-# Get the port from environment variable or default to 10000
-port = os.environ.get('PORT', '10000')
+# Get the port from environment variable or default to 8000
+port = int(os.environ.get('PORT', '8000'))
 bind = f"0.0.0.0:{port}"
 
 # Number of worker processes

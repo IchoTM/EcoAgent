@@ -187,6 +187,37 @@ def analytics():
         total_user_cost = sum(user_costs.values())
         total_avg_cost = sum(avg_costs.values())
         
+        # Generate AI Insights
+        insights = {
+            'electricity': {
+                'above_average': stats['energy_usage'] > stats['avg_us_energy'],
+                'tips': [
+                    'Switch to LED bulbs in high-use areas',
+                    'Use smart power strips for electronics',
+                    'Run appliances during off-peak hours',
+                    'Install a programmable thermostat'
+                ] if stats['energy_usage'] > stats['avg_us_energy'] else ['Great job! Your electricity usage is below average.']
+            },
+            'water': {
+                'above_average': stats['water_usage'] > stats['avg_us_water'],
+                'tips': [
+                    'Fix any leaking faucets or pipes',
+                    'Install low-flow showerheads',
+                    'Use rain barrels for garden watering',
+                    'Run full loads of laundry'
+                ] if stats['water_usage'] > stats['avg_us_water'] else ['Excellent! Your water consumption is below average.']
+            },
+            'transport': {
+                'above_average': stats['miles_traveled'] > stats['avg_us_miles'],
+                'tips': [
+                    'Consider carpooling for regular trips',
+                    'Combine multiple errands into one trip',
+                    'Use public transportation when possible',
+                    'Try biking for short distances'
+                ] if stats['miles_traveled'] > stats['avg_us_miles'] else ['Well done! Your transportation impact is below average.']
+            }
+        }
+        
         return render_template('analytics.html', 
                              user_energy=stats['energy_usage'],
                              user_water=stats['water_usage'],
@@ -197,7 +228,8 @@ def analytics():
                              user_costs=user_costs,
                              avg_costs=avg_costs,
                              total_user_cost=total_user_cost,
-                             total_avg_cost=total_avg_cost)
+                             total_avg_cost=total_avg_cost,
+                             insights=insights)
     finally:
         db.close()
 

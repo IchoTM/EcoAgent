@@ -94,3 +94,78 @@
 .highlight-savings.negative {
     color: #FF9800;
 }
+
+/* AI Insights Section */
+.ai-insights {
+    margin-top: 3rem;
+    padding: 2rem;
+    background: #f8f9fa;
+    border-radius: 12px;
+}
+
+.ai-insights h2 {
+    color: #2f3f4f;
+    margin-bottom: 1.5rem;
+    text-align: center;
+}
+
+.insights-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 1.5rem;
+}
+
+.insight-card {
+    background: white;
+    padding: 1.5rem;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    transition: transform 0.2s;
+}
+
+.insight-card:hover {
+    transform: translateY(-2px);
+}
+
+.insight-card h3 {
+    color: #2f3f4f;
+    margin-bottom: 1rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.insight-card.needs-improvement h3 {
+    color: #f44336;
+}
+
+.insight-card.good h3 {
+    color: #4CAF50;
+}
+
+.insight-card ul {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.insight-card li {
+    padding: 0.5rem 0;
+    display: flex;
+    align-items: flex-start;
+    gap: 0.5rem;
+}
+
+.insight-card.needs-improvement li::before {
+    content: "•";
+    color: #f44336;
+    font-weight: bold;
+    margin-right: 0.5rem;
+}
+
+.insight-card.good li::before {
+    content: "✓";
+    color: #4CAF50;
+    font-weight: bold;
+    margin-right: 0.5rem;
+}

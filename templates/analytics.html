@@ -107,6 +107,51 @@
                 {% endif %}
             </p>
         </div>
+        
+        <!-- AI Insights Section -->
+        <div class="ai-insights">
+            <h2>AI Insights & Recommendations</h2>
+            <div class="insights-grid">
+                <!-- Electricity Insights -->
+                <div class="insight-card {% if insights.electricity.above_average %}needs-improvement{% else %}good{% endif %}">
+                    <h3>
+                        <i class="fas fa-bolt"></i>
+                        Electricity Usage
+                    </h3>
+                    <ul>
+                        {% for tip in insights.electricity.tips %}
+                            <li>{{ tip }}</li>
+                        {% endfor %}
+                    </ul>
+                </div>
+
+                <!-- Water Insights -->
+                <div class="insight-card {% if insights.water.above_average %}needs-improvement{% else %}good{% endif %}">
+                    <h3>
+                        <i class="fas fa-water"></i>
+                        Water Usage
+                    </h3>
+                    <ul>
+                        {% for tip in insights.water.tips %}
+                            <li>{{ tip }}</li>
+                        {% endfor %}
+                    </ul>
+                </div>
+
+                <!-- Transportation Insights -->
+                <div class="insight-card {% if insights.transport.above_average %}needs-improvement{% else %}good{% endif %}">
+                    <h3>
+                        <i class="fas fa-car"></i>
+                        Transportation Impact
+                    </h3>
+                    <ul>
+                        {% for tip in insights.transport.tips %}
+                            <li>{{ tip }}</li>
+                        {% endfor %}
+                    </ul>
+                </div>
+            </div>
+        </div>
     </div>
 </div>
 

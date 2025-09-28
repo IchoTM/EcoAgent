@@ -97,10 +97,11 @@ def calculate_user_stats(consumption_data):
         print(f"  Public Transit: {d.public_transport} miles")
 
     # Calculate individual contributions to monthly carbon footprint
-    electricity_carbon = sum([d.electricity * 0.85 for d in recent_data]) / len(recent_data)
-    gas_carbon = sum([d.gas * 11.7 for d in recent_data]) / len(recent_data)
-    car_carbon = sum([d.car_miles * 0.89 for d in recent_data]) / len(recent_data)
-    transit_carbon = sum([d.public_transport * 0.14 for d in recent_data]) / len(recent_data)
+    # Handle NULL values by treating them as 0 or filtering them out
+    electricity_carbon = sum([(d.electricity or 0) * 0.85 for d in recent_data]) / len(recent_data)
+    gas_carbon = sum([(d.gas or 0) * 11.7 for d in recent_data]) / len(recent_data)
+    car_carbon = sum([(d.car_miles or 0) * 0.89 for d in recent_data]) / len(recent_data)
+    transit_carbon = sum([(d.public_transport or 0) * 0.14 for d in recent_data]) / len(recent_data)
     
     # Debug: Print intermediate calculations
     print("\nDEBUG: Monthly Carbon Calculations (lbs CO2):")
@@ -118,11 +119,11 @@ def calculate_user_stats(consumption_data):
     print(f"Annual total: {carbon:.2f} tons CO2/year")
     print(f"US average: 16 tons CO2/year")
     
-    energy = sum([d.electricity for d in recent_data]) / len(recent_data)
-    water = sum([d.water for d in recent_data]) / len(recent_data)
+    energy = sum([(d.electricity or 0) for d in recent_data]) / len(recent_data)
+    water = sum([(d.water or 0) for d in recent_data]) / len(recent_data)
     
     # Calculate total miles (car + public transport)
-    miles = sum([(d.car_miles + d.public_transport) for d in recent_data]) / len(recent_data)
+    miles = sum([((d.car_miles or 0) + (d.public_transport or 0)) for d in recent_data]) / len(recent_data)
     
     return {
         'carbon_footprint': round(carbon, 1),
@@ -588,22 +589,28 @@ def add_consumption():
             
         # Validate and convert input data
         try:
-            # First validate all data is present
-            required_fields = ['electricity', 'gas', 'water', 'car_miles', 'public_transport', 'household_size']
-            for field in required_fields:
-                if field not in data:
-                    raise KeyError(f"Missing required field: {field}")
-                    
-            # Create consumption record
-            consumption = ConsumptionData(
-                user_id=user.id,
-                electricity=float(data['electricity']),
-                gas=float(data['gas']),
-                water=float(data['water']),
-                car_miles=float(data['car_miles']),
-                public_transport=float(data['public_transport']),
-                household_size=int(data['household_size'])
-            )
+            # Create consumption record with only provided fields
+            consumption_data = {'user_id': user.id}
+            
+            # Optional fields with their type conversion
+            field_types = {
+                'electricity': float,
+                'gas': float,
+                'water': float,
+                'car_miles': float,
+                'public_transport': float
+            }
+            
+            # Add only provided fields with proper type conversion
+            for field, convert in field_types.items():
+                if field in data and data[field] is not None:
+                    try:
+                        consumption_data[field] = convert(data[field])
+                    except (ValueError, TypeError):
+                        raise ValueError(f"Invalid value for {field}")
+            
+            # Create consumption record with partial data
+            consumption = ConsumptionData(**consumption_data)
             
             app.logger.info(f"Created consumption record: {consumption.__dict__}")
             

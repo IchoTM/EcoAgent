@@ -22,10 +22,8 @@ from auth import Auth, AuthError
 # Create Flask app and set configurations
 app = Flask(__name__)
 
-# Session configuration
-app.secret_key = os.environ.get('FLASK_SECRET_KEY')
-if not app.secret_key:
-    raise ValueError("No FLASK_SECRET_KEY set for Flask application")
+# Simple session configuration
+app.secret_key = 'dev-key-123'
 
 # Session configuration
 from flask_session import Session

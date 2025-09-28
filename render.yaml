@@ -11,8 +11,6 @@ services:
         value: 3.12.0
       - key: FLASK_ENV
         value: production
-      - key: FLASK_SECRET_KEY
-        sync: false
       - key: GOOGLE_API_KEY
         sync: false
       - key: RENDER_EXTERNAL_URL

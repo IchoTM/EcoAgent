@@ -1,10 +1,10 @@
-# EcoAgent - Environmental Sustainability Tracker
+# EcoAgent 🌱
 
-EcoAgent is a comprehensive web application designed to help users track and visualize their environmental impact through monitoring utilities consumption, transportation usage, and other sustainability metrics.
+[![License](https://img.shields.io/badge/license-MIT-blue.svg)](https://opensource.org/licenses/MIT)
+[![Python](https://img.shields.io/badge/python-3.12-green.svg)](https://www.python.org/)
+[![Flask](https://img.shields.io/badge/flask-latest-green.svg)](https://flask.palletsprojects.com/)
 
-![License](https://img.shields.io/badge/license-MIT-blue.svg)
-![Python](https://img.shields.io/badge/python-3.12-green.svg)
-![Flask](https://img.shields.io/badge/flask-latest-green.svg)
+A comprehensive web application designed to help users track and visualize their environmental impact through monitoring utilities consumption, transportation usage, and other sustainability metrics.
 
 ## Features
 
@@ -36,8 +36,8 @@ EcoAgent is a comprehensive web application designed to help users track and vis
 
 1. Clone the repository
    ```bash
-   git clone https://github.com/IchoTM/MHacks25.git
-   cd MHacks25
+   git clone https://github.com/IchoTM/EcoAgent.git
+   cd EcoAgent
    ```
 
 2. Create and activate a virtual environment
@@ -101,12 +101,7 @@ The application will be available at `http://localhost:8501`
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
-## Acknowledgments
-
-- Built during MHacks 25
-- Thanks to all contributors and participants
-- Special thanks to the MHacks organizing team
-
 ## Contact
 
-- Project Link: [https://github.com/IchoTM/MHacks25](https://github.com/IchoTM/MHacks25)
+- Project Link: [https://github.com/IchoTM/EcoAgent](https://github.com/IchoTM/EcoAgent)
+- Live Demo: [https://ecoagent.org](https://ecoagent.org)

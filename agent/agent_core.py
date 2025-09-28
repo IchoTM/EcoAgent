@@ -60,12 +60,19 @@ class EcoAgent:
         """Retrieve user's consumption data from the database"""
         session = get_session()
         try:
+            from database import User  # Import User model
+            
+            # First get the user's ID from auth0_id
+            user = session.query(User).filter_by(auth0_id=user_id).first()
+            if not user:
+                return {}
+
             # Get data from the last 30 days
             start_date = datetime.now() - timedelta(days=30)
             consumption_data = (
                 session.query(ConsumptionData)
                 .filter(
-                    ConsumptionData.user_id == user_id,
+                    ConsumptionData.user_id == user.id,
                     ConsumptionData.timestamp >= start_date
                 )
                 .order_by(ConsumptionData.timestamp.desc())
@@ -83,9 +90,9 @@ class EcoAgent:
             total_days = len(consumption_data)
 
             for record in consumption_data:
-                total_electricity += record.electricity_kwh or 0
-                total_gas += record.gas_therms or 0
-                total_water += record.water_gallons or 0
+                total_electricity += record.electricity or 0
+                total_gas += record.gas or 0
+                total_water += record.water or 0
                 total_car_miles += record.car_miles or 0
 
             # Calculate daily averages
@@ -97,9 +104,9 @@ class EcoAgent:
                     'car_miles': round(total_car_miles / total_days, 2)
                 },
                 'trends': {
-                    'electricity_trend': self._calculate_trend([d.electricity_kwh for d in consumption_data if d.electricity_kwh]),
-                    'gas_trend': self._calculate_trend([d.gas_therms for d in consumption_data if d.gas_therms]),
-                    'water_trend': self._calculate_trend([d.water_gallons for d in consumption_data if d.water_gallons]),
+                    'electricity_trend': self._calculate_trend([d.electricity for d in consumption_data if d.electricity]),
+                    'gas_trend': self._calculate_trend([d.gas for d in consumption_data if d.gas]),
+                    'water_trend': self._calculate_trend([d.water for d in consumption_data if d.water]),
                     'car_miles_trend': self._calculate_trend([d.car_miles for d in consumption_data if d.car_miles])
                 }
             }
@@ -210,7 +217,7 @@ class EcoAgent:
             print(f"DEBUG: User ID: {user_id}")
             
             # Get user's consumption data from database
-            user_data = self._get_user_consumption_data(user_id)
+            user_data = self._get_user_consumption_data(user_id) if user_id else {}
             print(f"DEBUG: Retrieved user data: {user_data}")
             
             # Merge with any additional data provided
@@ -273,33 +280,30 @@ class EcoAgent:
         """Process a request synchronously and return the response"""
         try:
             if request.query_type == "chat":
-                import streamlit as st
-                
                 print(f"\nDEBUG: Processing new chat request")
                 print(f"DEBUG: Message: {request.message}")
                 print(f"DEBUG: User ID: {request.user_id}")
                 print(f"DEBUG: Additional data: {request.data}")
                 
-                with st.spinner("🤔 Analyzing your sustainability data..."):
-                    try:
-                        message = self._generate_chat_response(
-                            request.message,
-                            request.user_id,
-                            request.data
-                        )
-                        print("DEBUG: Successfully generated response")
-                        
-                        return SustainabilityResponse(
-                            status="success",
-                            message=message,
-                            data={"type": "chat"}
-                        )
-                    except Exception as chat_error:
-                        print(f"DEBUG: Error in chat response generation: {str(chat_error)}")
-                        import traceback
-                        print("DEBUG: Full traceback:")
-                        print(traceback.format_exc())
-                        return SustainabilityResponse(
+                try:
+                    message = self._generate_chat_response(
+                        request.message,
+                        request.user_id,
+                        request.data
+                    )
+                    print("DEBUG: Successfully generated response")
+                    
+                    return SustainabilityResponse(
+                        status="success",
+                        message=message,
+                        data={"type": "chat"}
+                    )
+                except Exception as chat_error:
+                    print(f"DEBUG: Error in chat response generation: {str(chat_error)}")
+                    import traceback
+                    print("DEBUG: Full traceback:")
+                    print(traceback.format_exc())
+                    return SustainabilityResponse(
                             status="error",
                             error=f"Error generating response: {str(chat_error)}"
                         )

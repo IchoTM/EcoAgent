@@ -247,12 +247,23 @@ def add_consumption():
 
 @app.route('/analyze', methods=['POST'])
 @login_required
-async def analyze():
+def analyze():
     data = request.json
     agent = EcoAgent()
-    request_data = SustainabilityRequest(**data)
-    analysis = await agent.analyze_sustainability(request_data)
-    return jsonify(analysis)
+    request_data = SustainabilityRequest(
+        query_type=data.get('query_type', 'chat'),
+        user_id=session['user']['id'],
+        message=data.get('message'),
+        data=data.get('data')
+    )
+    # Use synchronous process_request instead of async analyze_sustainability
+    response = agent.process_request(request_data)
+    return jsonify({
+        'status': response.status,
+        'message': response.message if response.message else None,
+        'error': response.error if response.error else None,
+        'data': response.data if response.data else None
+    })
 
 def create_energy_chart(consumption_data):
     dates = [d.timestamp for d in consumption_data]
@@ -291,6 +302,12 @@ def create_transport_chart(consumption_data):
     )
     
     return fig
+
+@app.route('/chat')
+@login_required
+def chat():
+    """Render the chat interface"""
+    return render_template('chat.html')
 
 if __name__ == '__main__':
     import argparse

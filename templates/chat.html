@@ -1,0 +1,87 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="chat-container">
+    <div class="chat-header">
+        <h2>Chat with EcoAgent</h2>
+        <p>Ask me about your sustainability impact and how to improve it!</p>
+    </div>
+    
+    <div class="chat-messages" id="chat-messages">
+        <div class="message assistant">
+            <div class="message-content">
+                👋 Hello! I'm your EcoAgent AI assistant. I'm here to help you understand your environmental impact and discover personalized ways to live more sustainably. What would you like to know about?
+            </div>
+        </div>
+    </div>
+    
+    <form id="chat-form" class="chat-input-form">
+        <div class="chat-input-container">
+            <input type="text" id="chat-input" placeholder="Type your message..." required>
+            <button type="submit">
+                <i class="fas fa-paper-plane"></i>
+            </button>
+        </div>
+    </form>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    const chatForm = document.getElementById('chat-form');
+    const chatInput = document.getElementById('chat-input');
+    const chatMessages = document.getElementById('chat-messages');
+
+    chatForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        
+        const message = chatInput.value.trim();
+        if (!message) return;
+        
+        // Add user message to chat
+        addMessage('user', message);
+        chatInput.value = '';
+        
+        try {
+            // Send to backend
+            const response = await fetch('/analyze', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    query_type: 'chat',
+                    message: message
+                })
+            });
+            
+            const data = await response.json();
+            if (data.status === 'success' && data.message) {
+                addMessage('assistant', data.message);
+            } else {
+                addMessage('assistant', 'I apologize, but I encountered an error. Please try again.');
+            }
+        } catch (error) {
+            console.error('Chat error:', error);
+            addMessage('assistant', 'Sorry, there was an error processing your request.');
+        }
+    });
+
+    function addMessage(role, content) {
+        const messageDiv = document.createElement('div');
+        messageDiv.className = `message ${role}`;
+        
+        const contentDiv = document.createElement('div');
+        contentDiv.className = 'message-content';
+        contentDiv.textContent = content;
+        
+        messageDiv.appendChild(contentDiv);
+        chatMessages.appendChild(messageDiv);
+        
+        // Scroll to bottom
+        chatMessages.scrollTop = chatMessages.scrollHeight;
+    }
+});
+</script>
+{% endblock %}

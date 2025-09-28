@@ -27,6 +27,12 @@
         </main>
     </div>
     
+    {% if 'user' in session %}
+    <a href="{{ url_for('chat') }}" class="chat-button" title="Chat with EcoAgent">
+        <i class="fas fa-comments"></i>
+    </a>
+    {% endif %}
+    
     <script src="{{ url_for('static', filename='js/main.js') }}"></script>
     {% block scripts %}{% endblock %}
 </body>

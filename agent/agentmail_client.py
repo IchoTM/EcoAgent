@@ -1,7 +1,7 @@
 from datetime import datetime, timedelta
 from typing import Dict, Any, Optional
 from agentmail import AsyncAgentMail
-from config.email_templates import (
+from .templates import (
     WEEKLY_REPORT_TEMPLATE,
     ECO_TIP_TEMPLATE,
     ACTION_REMINDER_TEMPLATE

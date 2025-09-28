@@ -19,11 +19,28 @@ import plotly.graph_objects as go
 import json
 from auth import Auth, AuthError
 from database import ConsumptionData, User, get_session
+from agent_web_interface import WebAgentInterface
+from agents.agent_manager import start_agents
+import asyncio
 
 app = Flask(__name__)
-app.secret_key = 'your-secret-key'  # Replace with a secure secret key
+app.secret_key = 'your-secure-key'  # Replace with a secure secret key
 app.config['PROXY_FIX_X_PORT'] = 1
 app.config['PROXY_FIX_X_PREFIX'] = 1
+
+# Start the agents in a background thread
+import threading
+def start_agents_thread():
+    import asyncio
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+    start_agents()
+
+agents_thread = threading.Thread(target=start_agents_thread, daemon=True)
+agents_thread.start()
+
+# Create Flask app instance before importing routes
+app = Flask(__name__)
 
 # Apply ProxyFix middleware for Cloudflare headers
 from werkzeug.middleware.proxy_fix import ProxyFix
@@ -776,6 +793,9 @@ def create_transport_chart(consumption_data):
     )
     
     return fig
+
+# Import routes after app is fully configured
+from agent_routes import *  # Import agent routes
 
 if __name__ == '__main__':
     import argparse

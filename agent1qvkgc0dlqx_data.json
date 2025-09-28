@@ -1,0 +1,8 @@
+{
+    "latest_alert": {
+        "consumption": 150.0,
+        "timestamp": "2025-09-28 09:24:45.498816",
+        "alert_type": "high_consumption",
+        "message": "High electricity consumption detected!"
+    }
+}

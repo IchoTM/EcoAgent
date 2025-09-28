@@ -27,6 +27,17 @@ if not all([AUTH0_CLIENT_ID, AUTH0_CLIENT_SECRET, AUTH0_DOMAIN, BASE_URL]):
 if not all([AUTH0_M2M_CLIENT_ID, AUTH0_M2M_CLIENT_SECRET]):
     raise EnvironmentError("Missing required Auth0 M2M credentials. Check AUTH0_M2M_CLIENT_ID and AUTH0_M2M_CLIENT_SECRET in .env file.")
 
+from functools import wraps
+from flask import session, jsonify
+
+def login_required(f):
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        if 'user' not in session:
+            return jsonify({"error": "Authentication required"}), 401
+        return f(*args, **kwargs)
+    return decorated
+
 class AuthError(Exception):
     """Custom exception for authentication errors"""
     pass

@@ -1,0 +1,58 @@
+/* Agent Insights Styles */
+.eco-tooltip {
+    --bs-tooltip-bg: var(--bs-success);
+    --bs-tooltip-color: var(--bs-white);
+    font-size: 0.875rem;
+}
+
+#agent-alert-badge {
+    z-index: 1050;
+    max-width: 350px;
+}
+
+#agent-alert-badge .toast {
+    background-color: rgba(255, 255, 255, 0.95);
+    border-left: 4px solid var(--bs-primary);
+    margin-bottom: 1rem;
+}
+
+#agent-alert-badge .toast.warning {
+    border-left-color: var(--bs-warning);
+}
+
+.insight-card {
+    border-left: 4px solid var(--bs-success);
+    transition: transform 0.2s ease;
+}
+
+.insight-card:hover {
+    transform: translateY(-2px);
+}
+
+/* Animated eco-tip indicator */
+.eco-tip-indicator {
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    background-color: var(--bs-success);
+    border-radius: 50%;
+    margin-right: 6px;
+    animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+    0% {
+        transform: scale(0.95);
+        box-shadow: 0 0 0 0 rgba(25, 135, 84, 0.7);
+    }
+    
+    70% {
+        transform: scale(1);
+        box-shadow: 0 0 0 10px rgba(25, 135, 84, 0);
+    }
+    
+    100% {
+        transform: scale(0.95);
+        box-shadow: 0 0 0 0 rgba(25, 135, 84, 0);
+    }
+}

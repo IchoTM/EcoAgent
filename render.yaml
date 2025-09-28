@@ -5,7 +5,8 @@ services:
     buildCommand: |
       mkdir -p /tmp/flask_session
       pip install --no-cache-dir -r requirements.txt
-    startCommand: gunicorn app:app --bind 0.0.0.0:$PORT --workers 4 --timeout 120
+      pkill gunicorn || true  # Kill any existing gunicorn processes
+    startCommand: gunicorn app:app --bind 0.0.0.0:8080 --workers 4 --timeout 120 --config /dev/null
     envVars:
       - key: PYTHON_VERSION
         value: 3.12.0
@@ -13,6 +14,8 @@ services:
         value: production
       - key: GOOGLE_API_KEY
         sync: false
+      - key: PORT
+        value: "8080"
       - key: RENDER_EXTERNAL_URL
         value: https://ecoagent-y0vt.onrender.com
       - key: AUTH0_DOMAIN

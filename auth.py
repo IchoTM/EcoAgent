@@ -8,14 +8,24 @@ from dotenv import load_dotenv
 from database import User, get_session
 
 # Load environment variables
-load_dotenv()
+load_dotenv(override=True)  # Force reload of environment variables
 
 # Auth0 Configuration
-AUTH0_CLIENT_ID = os.getenv('AUTH0_CLIENT_ID')
-AUTH0_CLIENT_SECRET = os.getenv('AUTH0_CLIENT_SECRET')
-AUTH0_DOMAIN = os.getenv('AUTH0_DOMAIN')
+AUTH0_CLIENT_ID = os.environ.get('AUTH0_CLIENT_ID')
+AUTH0_CLIENT_SECRET = os.environ.get('AUTH0_CLIENT_SECRET')
+AUTH0_DOMAIN = os.environ.get('AUTH0_DOMAIN')
+AUTH0_M2M_CLIENT_ID = os.environ.get('AUTH0_M2M_CLIENT_ID')
+AUTH0_M2M_CLIENT_SECRET = os.environ.get('AUTH0_M2M_CLIENT_SECRET')
 BASE_URL = 'http://localhost:8501'
 CALLBACK_URL = f"{BASE_URL}/callback"
+
+# Validate required environment variables
+if not all([AUTH0_CLIENT_ID, AUTH0_CLIENT_SECRET, AUTH0_DOMAIN]):
+    raise EnvironmentError("Missing required Auth0 configuration. Check .env file.")
+
+# Validate M2M credentials
+if not all([AUTH0_M2M_CLIENT_ID, AUTH0_M2M_CLIENT_SECRET]):
+    raise EnvironmentError("Missing required Auth0 M2M credentials. Check AUTH0_M2M_CLIENT_ID and AUTH0_M2M_CLIENT_SECRET in .env file.")
 
 class AuthError(Exception):
     """Custom exception for authentication errors"""
@@ -28,7 +38,70 @@ class Auth:
         self.domain = AUTH0_DOMAIN
         self.client_id = AUTH0_CLIENT_ID
         self.client_secret = AUTH0_CLIENT_SECRET
+        self.m2m_client_id = AUTH0_M2M_CLIENT_ID
+        self.m2m_client_secret = AUTH0_M2M_CLIENT_SECRET
         self.callback_url = "http://localhost:8501/callback"
+        self._management_token = None
+        
+        # Validate M2M credentials at initialization
+        if not self.m2m_client_id or not self.m2m_client_secret:
+            print("DEBUG: M2M credentials missing in Auth class initialization")
+            print(f"M2M Client ID exists: {bool(self.m2m_client_id)}")
+            print(f"M2M Client Secret exists: {bool(self.m2m_client_secret)}")
+            raise AuthError("M2M credentials not properly initialized")
+        
+    def _get_management_token(self) -> str:
+        """Get an access token for the Auth0 Management API"""
+        if not self.m2m_client_id or not self.m2m_client_secret:
+            raise AuthError("M2M credentials not configured. Please check AUTH0_M2M_CLIENT_ID and AUTH0_M2M_CLIENT_SECRET in .env")
+            
+        payload = {
+            'grant_type': 'client_credentials',
+            'client_id': self.m2m_client_id,
+            'client_secret': self.m2m_client_secret,
+            'audience': f'https://{self.domain}/api/v2/'
+        }
+        print(f"Requesting management token for audience: {payload['audience']}")
+        
+        headers = {'content-type': 'application/x-www-form-urlencoded'}
+        response = requests.post(
+            f'https://{self.domain}/oauth/token',
+            data=payload,
+            headers=headers
+        )
+        
+        if response.status_code != 200:
+            raise AuthError(f"Failed to get management token: {response.text}")
+            
+        self._management_token = response.json()['access_token']
+        return self._management_token
+        
+    def delete_auth0_user(self, user_id: str) -> bool:
+        """Permanently delete a user from Auth0"""
+        if not self._management_token:
+            self._get_management_token()
+            
+        headers = {
+            'Authorization': f'Bearer {self._management_token}',
+            'Content-Type': 'application/json'
+        }
+        
+        # Ensure the user_id is properly formatted
+        if not user_id.startswith('auth0|'):
+            user_id = f'auth0|{user_id}'
+            
+        response = requests.delete(
+            f'https://{self.domain}/api/v2/users/{user_id}',
+            headers=headers
+        )
+        
+        if response.status_code == 204:
+            return True
+        elif response.status_code == 404:
+            # User already deleted or doesn't exist
+            return True
+        else:
+            raise AuthError(f"Failed to delete Auth0 user: {response.text}")
     
     def get_auth_url(self) -> str:
         """Generate Auth0 authorization URL"""

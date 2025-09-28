@@ -1,0 +1,120 @@
+{% extends "base.html" %}
+
+{% block title %}Settings - EcoAgent{% endblock %}
+
+{% block content %}
+<div class="settings-container">
+    <h1>User Settings</h1>
+    
+    <div class="settings-section danger-zone">
+        <h2>Danger Zone</h2>
+        <div class="danger-action">
+            <div class="danger-info">
+                <h3>Delete Account</h3>
+                <p>Permanently delete your account and all associated data.</p>
+            </div>
+            <button id="delete-data-btn" class="btn-danger">Delete My Account</button>
+        </div>
+    </div>
+</div>
+
+<!-- Confirmation Modal -->
+<div id="confirm-modal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2>⚠️ Warning</h2>
+            <span class="close">&times;</span>
+        </div>
+        <div class="modal-body">
+            <p>Are you sure you want to completely delete your account? This action cannot be undone.</p>
+            <p>This will:</p>
+            <ul>
+                <li>Permanently delete your Auth0 account</li>
+                <li>Delete all your consumption records</li>
+                <li>Remove all your user data</li>
+                <li>Prevent re-login with the same social account</li>
+            </ul>
+            <p class="warning-text">Note: You will need to create a new account if you want to use the service again.</p>
+        </div>
+        <div class="modal-footer">
+            <button id="cancel-delete" class="btn">Cancel</button>
+            <button id="confirm-delete" class="btn-danger">Yes, Delete Everything</button>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    const modal = document.getElementById('confirm-modal');
+    const deleteBtn = document.getElementById('delete-data-btn');
+    const closeBtn = document.querySelector('.close');
+    const cancelBtn = document.getElementById('cancel-delete');
+    const confirmBtn = document.getElementById('confirm-delete');
+
+    // Open modal
+    deleteBtn.onclick = () => {
+        modal.style.display = 'block';
+    }
+
+    // Close modal functions
+    const closeModal = () => {
+        modal.style.display = 'none';
+    }
+
+    closeBtn.onclick = closeModal;
+    cancelBtn.onclick = closeModal;
+
+    // Click outside modal to close
+    window.onclick = (event) => {
+        if (event.target == modal) {
+            closeModal();
+        }
+    }
+
+    // Handle delete confirmation
+    confirmBtn.onclick = async () => {
+        try {
+            confirmBtn.disabled = true;
+            confirmBtn.textContent = 'Deleting...';
+            
+            const response = await fetch('/delete-user-data', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            });
+
+            if (response.ok) {
+                // Show final message before redirect
+                modal.innerHTML = `
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h2>Account Deleted</h2>
+                        </div>
+                        <div class="modal-body">
+                            <p>All your data has been permanently deleted from our systems.</p>
+                            <p>You will now be redirected to the login page.</p>
+                        </div>
+                    </div>
+                `;
+                
+                // Wait 2 seconds then redirect to logout
+                setTimeout(() => {
+                    window.location.href = '/logout';
+                }, 2000);
+            } else {
+                const data = await response.json();
+                throw new Error(data.message || 'Error deleting data');
+            }
+        } catch (error) {
+            console.error('Error:', error);
+            confirmBtn.disabled = false;
+            confirmBtn.textContent = 'Yes, Delete Everything';
+            alert('Error: ' + error.message);
+        }
+    }
+});
+</script>
+{% endblock %}

@@ -50,13 +50,36 @@ def calculate_user_stats(consumption_data):
     # Calculate averages from the last 30 days of data
     recent_data = sorted(consumption_data, key=lambda x: x.timestamp, reverse=True)[:30]
     
-    # Calculate carbon footprint (simplified calculation)
-    carbon = sum([(
-        d.electricity * 0.0004 +  # kWh to tons CO2
-        d.gas * 0.005 +  # therms to tons CO2
-        d.car_miles * 0.0004 +  # miles to tons CO2
-        d.public_transport * 0.0002  # miles to tons CO2
-    ) for d in recent_data]) / len(recent_data) * 12  # Annualized
+    # Debug: Print raw data
+    print("\nDEBUG: Raw consumption data for last 30 days:")
+    for d in recent_data:
+        print(f"Date: {d.timestamp}")
+        print(f"  Electricity: {d.electricity} kWh")
+        print(f"  Gas: {d.gas} therms")
+        print(f"  Car: {d.car_miles} miles")
+        print(f"  Public Transit: {d.public_transport} miles")
+
+    # Calculate individual contributions to monthly carbon footprint
+    electricity_carbon = sum([d.electricity * 0.85 for d in recent_data]) / len(recent_data)
+    gas_carbon = sum([d.gas * 11.7 for d in recent_data]) / len(recent_data)
+    car_carbon = sum([d.car_miles * 0.89 for d in recent_data]) / len(recent_data)
+    transit_carbon = sum([d.public_transport * 0.14 for d in recent_data]) / len(recent_data)
+    
+    # Debug: Print intermediate calculations
+    print("\nDEBUG: Monthly Carbon Calculations (lbs CO2):")
+    print(f"Electricity: {electricity_carbon:.2f} lbs CO2/month")
+    print(f"Gas: {gas_carbon:.2f} lbs CO2/month")
+    print(f"Car: {car_carbon:.2f} lbs CO2/month")
+    print(f"Transit: {transit_carbon:.2f} lbs CO2/month")
+    
+    # Sum up monthly carbon in pounds
+    monthly_carbon_lbs = electricity_carbon + gas_carbon + car_carbon + transit_carbon
+    print(f"\nTotal monthly: {monthly_carbon_lbs:.2f} lbs CO2")
+    
+    # Convert to annual tons
+    carbon = (monthly_carbon_lbs * 12) / 2000
+    print(f"Annual total: {carbon:.2f} tons CO2/year")
+    print(f"US average: 16 tons CO2/year")
     
     energy = sum([d.electricity for d in recent_data]) / len(recent_data)
     water = sum([d.water for d in recent_data]) / len(recent_data)
@@ -77,10 +100,10 @@ def calculate_user_stats(consumption_data):
 
 @app.route('/')
 def home():
-    # Clear any existing session data when arriving at home page
-    if 'user' in session:
-        session.clear()
-    return render_template('login.html')
+    # Only show login page if user is not logged in
+    if 'user' not in session:
+        return render_template('login.html')
+    return redirect(url_for('dashboard'))
 
 @app.route('/analytics')
 @login_required
@@ -94,11 +117,14 @@ def analytics():
         consumption_data = db.query(ConsumptionData).filter_by(user_id=user.id).all()
         stats = calculate_user_stats(consumption_data)
         
+        # Convert annual tons to monthly pounds for display
+        monthly_pounds = (stats['carbon_footprint'] * 2000) / 12  # First convert to pounds, then to monthly
+        
         return render_template('analytics.html', 
                              user_energy=stats['energy_usage'],
                              user_water=stats['water_usage'],
                              user_miles=stats['miles_traveled'],
-                             user_carbon=stats['carbon_footprint'] * 2000)  # Convert tons to pounds
+                             user_carbon=monthly_pounds)
     finally:
         db.close()
 
@@ -106,23 +132,40 @@ def analytics():
 @login_required
 def dashboard():
     db_session = get_session()
-    user_id = session['user']['id']
-    consumption_data = db_session.query(ConsumptionData).filter_by(user_id=user_id).all()
-    
-    # Calculate user statistics
-    stats = calculate_user_stats(consumption_data)
-    
-    # Create charts
-    energy_fig = create_energy_chart(consumption_data)
-    transport_fig = create_transport_chart(consumption_data)
-    
-    # Convert charts to JSON for rendering
-    charts = {
-        'energy': json.dumps(energy_fig, cls=plotly.utils.PlotlyJSONEncoder),
-        'transport': json.dumps(transport_fig, cls=plotly.utils.PlotlyJSONEncoder)
-    }
-    
-    return render_template('index.html', charts=charts, stats=stats)
+    try:
+        # First get the user's database ID using their auth0_id
+        user = db_session.query(User).filter_by(auth0_id=session['user']['id']).first()
+        if not user:
+            app.logger.error(f"User not found in database: {session['user']['id']}")
+            return redirect(url_for('login'))
+            
+        app.logger.info(f"Loading dashboard for user {user.id} ({user.email})")
+        
+        # Get all consumption data for the user using their database ID
+        consumption_data = db_session.query(ConsumptionData).filter_by(user_id=user.id).all()
+        app.logger.info(f"Found {len(consumption_data)} consumption records")
+        
+        # Calculate user statistics
+        stats = calculate_user_stats(consumption_data)
+        
+        # Create charts
+        energy_fig = create_energy_chart(consumption_data)
+        transport_fig = create_transport_chart(consumption_data)
+        
+        # Convert charts to JSON for rendering
+        charts = {
+            'energy': json.dumps(energy_fig, cls=plotly.utils.PlotlyJSONEncoder),
+            'transport': json.dumps(transport_fig, cls=plotly.utils.PlotlyJSONEncoder)
+        }
+        
+        return render_template('index.html', charts=charts, stats=stats)
+        
+    except Exception as e:
+        app.logger.error(f"Error loading dashboard: {str(e)}")
+        return redirect(url_for('login'))
+        
+    finally:
+        db_session.close()
 
 @app.route('/auth')
 def auth():
@@ -202,6 +245,105 @@ def callback():
 def data_entry():
     return render_template('data_entry.html')
 
+@app.route('/settings')
+@login_required
+def settings():
+    return render_template('settings.html')
+
+@app.route('/delete-user-data', methods=['POST'])
+@login_required
+def delete_user_data():
+    db_session = get_session()
+    try:
+        # Get user by auth0_id
+        auth0_id = session['user']['id']
+        user = db_session.query(User).filter_by(auth0_id=auth0_id).first()
+        if not user:
+            return jsonify({'status': 'error', 'message': 'User not found'}), 404
+            
+        # Store IDs for logging
+        user_id = user.id
+        user_email = user.email  # Store for logging
+        
+        try:
+            # 1. Delete all consumption data first (in a separate transaction)
+            with get_session() as data_session:
+                data_session.query(ConsumptionData).filter_by(user_id=user_id).delete(synchronize_session=False)
+                data_session.commit()
+                app.logger.info(f"Deleted all consumption data for user {user_id}")
+            
+            # 2. Delete from Auth0
+            try:
+                auth_client.delete_auth0_user(auth0_id)
+                app.logger.info(f"Auth0 account deleted - Auth0 ID: {auth0_id}")
+            except AuthError as e:
+                app.logger.error(f"Failed to delete Auth0 account: {str(e)}")
+                return jsonify({
+                    'status': 'error',
+                    'message': 'Failed to delete account. Please contact support.'
+                }), 500
+            
+            # 3. Double-check and force-delete any remaining consumption data
+            remaining_data = db_session.query(ConsumptionData).filter_by(user_id=user_id).all()
+            if remaining_data:
+                app.logger.warning(f"Found {len(remaining_data)} remaining consumption records - force deleting")
+                for record in remaining_data:
+                    db_session.delete(record)
+            
+            # 4. Delete the user record itself
+            db_session.delete(user)
+            
+            # 5. Commit the final changes
+            db_session.commit()
+            
+            # 6. Verify complete deletion
+            verify_session = get_session()
+            try:
+                remaining_user = verify_session.query(User).filter_by(auth0_id=auth0_id).first()
+                remaining_data = verify_session.query(ConsumptionData).filter_by(user_id=user_id).first()
+                
+                if remaining_user or remaining_data:
+                    app.logger.error(f"Data deletion verification failed! User: {bool(remaining_user)}, Data: {bool(remaining_data)}")
+                    return jsonify({
+                        'status': 'error',
+                        'message': 'Failed to verify complete data deletion.'
+                    }), 500
+            finally:
+                verify_session.close()
+            
+            # 7. Log the successful complete deletion
+            app.logger.info(
+                f"Complete user deletion verified - "
+                f"Database ID: {user_id}, Auth0 ID: {auth0_id}, "
+                f"Email: {user_email} - All data confirmed deleted"
+            )
+            
+            # 8. Clear the session
+            session.clear()
+            
+            return jsonify({
+                'status': 'success',
+                'message': 'Account and all associated data permanently deleted'
+            })
+            
+        except Exception as e:
+            db_session.rollback()
+            app.logger.error(f"Error during user deletion process: {str(e)}")
+            return jsonify({
+                'status': 'error',
+                'message': 'An error occurred during deletion. Please contact support.'
+            }), 500
+            
+    except Exception as e:
+        app.logger.error(f"Error in delete_user_data: {str(e)}")
+        return jsonify({
+            'status': 'error',
+            'message': 'Server error occurred'
+        }), 500
+        
+    finally:
+        db_session.close()
+
 @app.route('/logout')
 def logout():
     # Clear the session
@@ -227,23 +369,88 @@ def logout():
 @app.route('/add_consumption', methods=['POST'])
 @login_required
 def add_consumption():
-    data = request.json
+    if 'user' not in session:
+        app.logger.error("No user in session")
+        return jsonify({'status': 'error', 'message': 'Not authenticated'}), 401
+
+    app.logger.info(f"Received consumption data request for user: {session['user']['id']}")
+    
     db_session = get_session()
-    
-    consumption = ConsumptionData(
-        user_id=session['user']['id'],
-        electricity=data['electricity'],
-        gas=data['gas'],
-        water=data['water'],
-        car_miles=data['car_miles'],
-        public_transport=data['public_transport'],
-        household_size=data['household_size']
-    )
-    
-    db_session.add(consumption)
-    db_session.commit()
-    
-    return jsonify({'status': 'success'})
+    try:
+        data = request.json
+        app.logger.info(f"Received data: {data}")
+        
+        if not data:
+            app.logger.error("No data in request")
+            return jsonify({'status': 'error', 'message': 'No data provided'}), 400
+
+        # Get the user's database ID using their auth0_id
+        user = db_session.query(User).filter_by(auth0_id=session['user']['id']).first()
+        if not user:
+            app.logger.error(f"User not found in database: {session['user']['id']}")
+            return jsonify({'status': 'error', 'message': 'User not found'}), 404
+            
+        app.logger.info(f"Found user in database: {user.id} ({user.email})")
+            
+        # Validate and convert input data
+        try:
+            # First validate all data is present
+            required_fields = ['electricity', 'gas', 'water', 'car_miles', 'public_transport', 'household_size']
+            for field in required_fields:
+                if field not in data:
+                    raise KeyError(f"Missing required field: {field}")
+                    
+            # Create consumption record
+            consumption = ConsumptionData(
+                user_id=user.id,
+                electricity=float(data['electricity']),
+                gas=float(data['gas']),
+                water=float(data['water']),
+                car_miles=float(data['car_miles']),
+                public_transport=float(data['public_transport']),
+                household_size=int(data['household_size'])
+            )
+            
+            app.logger.info(f"Created consumption record: {consumption.__dict__}")
+            
+        except (KeyError, ValueError) as e:
+            app.logger.error(f"Data validation error: {str(e)}")
+            return jsonify({'status': 'error', 'message': f'Invalid data: {str(e)}'}), 400
+        
+        # Add and commit in separate try block to catch database errors
+        try:
+            db_session.add(consumption)
+            db_session.flush()  # Check for database errors before commit
+            app.logger.info(f"Added consumption record with ID: {consumption.id}")
+            
+            db_session.commit()
+            app.logger.info(f"Successfully committed consumption data for user {user.id}")
+            
+            # Verify the data was saved
+            saved_data = db_session.query(ConsumptionData).filter_by(id=consumption.id).first()
+            if not saved_data:
+                raise Exception("Data verification failed - record not found after commit")
+                
+            return jsonify({
+                'status': 'success',
+                'message': 'Data saved successfully',
+                'data': {
+                    'id': consumption.id,
+                    'timestamp': consumption.timestamp.isoformat()
+                }
+            })
+            
+        except Exception as e:
+            db_session.rollback()
+            app.logger.error(f"Database error: {str(e)}")
+            return jsonify({'status': 'error', 'message': 'Database error: Failed to save data'}), 500
+        
+    except Exception as e:
+        app.logger.error(f"Unexpected error in add_consumption: {str(e)}")
+        return jsonify({'status': 'error', 'message': 'Server error occurred'}), 500
+        
+    finally:
+        db_session.close()
 
 @app.route('/analyze', methods=['POST'])
 @login_required
@@ -266,39 +473,115 @@ def analyze():
     })
 
 def create_energy_chart(consumption_data):
-    dates = [d.timestamp for d in consumption_data]
-    electricity = [d.electricity for d in consumption_data]
-    gas = [d.gas for d in consumption_data]
-    water = [d.water for d in consumption_data]
+    # Sort data by timestamp
+    sorted_data = sorted(consumption_data, key=lambda x: x.timestamp)
+    
+    dates = [d.timestamp for d in sorted_data]
+    electricity = [d.electricity for d in sorted_data]
+    gas = [d.gas for d in sorted_data]
+    water = [d.water for d in sorted_data]
     
     fig = go.Figure()
-    fig.add_trace(go.Scatter(x=dates, y=electricity, name='Electricity'))
-    fig.add_trace(go.Scatter(x=dates, y=gas, name='Gas'))
-    fig.add_trace(go.Scatter(x=dates, y=water, name='Water'))
+    
+    # Add traces with improved styling
+    fig.add_trace(go.Scatter(
+        x=dates, 
+        y=electricity, 
+        name='Electricity (kWh)',
+        mode='lines+markers',
+        line=dict(width=2, color='#2ecc71'),
+        marker=dict(size=8)
+    ))
+    
+    fig.add_trace(go.Scatter(
+        x=dates, 
+        y=gas, 
+        name='Gas (therms)',
+        mode='lines+markers',
+        line=dict(width=2, color='#e74c3c'),
+        marker=dict(size=8)
+    ))
+    
+    fig.add_trace(go.Scatter(
+        x=dates, 
+        y=water, 
+        name='Water (gallons)',
+        mode='lines+markers',
+        line=dict(width=2, color='#3498db'),
+        marker=dict(size=8)
+    ))
     
     fig.update_layout(
-        title='Energy Consumption Over Time',
+        title={
+            'text': 'Energy & Water Consumption Over Time',
+            'y':0.95,
+            'x':0.5,
+            'xanchor': 'center',
+            'yanchor': 'top'
+        },
         xaxis_title='Date',
         yaxis_title='Consumption',
-        template='plotly_dark'
+        template='plotly_dark',
+        showlegend=True,
+        legend=dict(
+            yanchor="top",
+            y=0.99,
+            xanchor="left",
+            x=0.01
+        ),
+        margin=dict(l=50, r=50, t=50, b=50)
     )
     
     return fig
 
 def create_transport_chart(consumption_data):
-    dates = [d.timestamp for d in consumption_data]
-    car_miles = [d.car_miles for d in consumption_data]
-    public_transport = [d.public_transport for d in consumption_data]
+    # Sort data by timestamp
+    sorted_data = sorted(consumption_data, key=lambda x: x.timestamp)
+    
+    dates = [d.timestamp for d in sorted_data]
+    car_miles = [d.car_miles for d in sorted_data]
+    public_transport = [d.public_transport for d in sorted_data]
     
     fig = go.Figure()
-    fig.add_trace(go.Scatter(x=dates, y=car_miles, name='Car Miles'))
-    fig.add_trace(go.Scatter(x=dates, y=public_transport, name='Public Transport'))
+    
+    # Add traces with improved styling
+    fig.add_trace(go.Scatter(
+        x=dates, 
+        y=car_miles, 
+        name='Car Miles',
+        mode='lines+markers',
+        line=dict(width=2, color='#e67e22'),
+        marker=dict(size=8)
+    ))
+    
+    fig.add_trace(go.Scatter(
+        x=dates, 
+        y=public_transport, 
+        name='Public Transit Miles',
+        mode='lines+markers',
+        line=dict(width=2, color='#9b59b6'),
+        marker=dict(size=8)
+    ))
     
     fig.update_layout(
-        title='Transportation Usage Over Time',
+        title={
+            'text': 'Transportation Usage Over Time',
+            'y':0.95,
+            'x':0.5,
+            'xanchor': 'center',
+            'yanchor': 'top'
+        },
         xaxis_title='Date',
         yaxis_title='Miles',
-        template='plotly_dark'
+        template='plotly_dark',
+        showlegend=True,
+        legend=dict(
+            yanchor="top",
+            y=0.99,
+            xanchor="left",
+            x=0.01
+        ),
+        margin=dict(l=50, r=50, t=50, b=50)
     )
     
     return fig

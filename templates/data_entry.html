@@ -57,6 +57,7 @@
         };
         
         try {
+            console.log('Submitting data:', formData);
             const response = await fetch('/add_consumption', {
                 method: 'POST',
                 headers: {
@@ -65,14 +66,18 @@
                 body: JSON.stringify(formData)
             });
             
+            const result = await response.json();
+            console.log('Server response:', result);
+            
             if (response.ok) {
-                window.location.href = '/';
+                alert('Data saved successfully!');
+                window.location.href = '/dashboard';
             } else {
-                alert('Error submitting data');
+                alert(`Error: ${result.message || 'Failed to save data'}`);
             }
         } catch (error) {
             console.error('Error:', error);
-            alert('Error submitting data');
+            alert('Error submitting data: ' + error.message);
         }
     });
 </script>

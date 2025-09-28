@@ -11,6 +11,7 @@
             <div class="comparison {% if stats.carbon_footprint < stats.avg_us_carbon %}better{% else %}worse{% endif %}">
                 {{ "%.1f"|format(stats.carbon_footprint/stats.avg_us_carbon*100) }}% of US average
             </div>
+            </div>
         </div>
         
         <div class="stat-card">

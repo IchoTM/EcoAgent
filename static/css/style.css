@@ -8,6 +8,215 @@
     --text-primary: #1E293B;       /* Dark blue-gray for main text */
     --text-secondary: #64748B;     /* Medium gray for secondary text */
     --text-on-primary: #FFFFFF;    /* White text on primary color */
+    --danger-color: #DC2626;       /* Red for dangerous actions */
+    --danger-dark: #991B1B;        /* Darker red for hover states */
+    --accent-color: #38BDF8;       /* Blue accent for highlights */
+    --nav-height: 80px;
+    --border-radius: 12px;
+    --shadow-sm: 0 2px 4px rgba(0,0,0,0.05);
+    --shadow-md: 0 4px 6px rgba(0,0,0,0.07);
+    --shadow-lg: 0 10px 15px rgba(0,0,0,0.1);
+}
+
+/* Base styles */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+    background-color: var(--background-color);
+    color: var(--text-primary);
+    line-height: 1.5;
+    min-height: 100vh;
+}
+
+/* Navigation */
+.topnav {
+    background-color: var(--secondary-color);
+    padding: 1rem 2rem;
+    box-shadow: var(--shadow-md);
+    height: var(--nav-height);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 100;
+}
+
+.topnav h1 {
+    color: var(--text-on-primary);
+    font-size: 1.5rem;
+    font-weight: 700;
+}
+
+.nav-links {
+    display: flex;
+    gap: 1.5rem;
+    align-items: center;
+}
+
+.nav-link {
+    color: var(--text-on-primary);
+    text-decoration: none;
+    font-weight: 500;
+    padding: 0.5rem 1rem;
+    border-radius: var(--border-radius);
+    transition: background-color 0.2s;
+}
+
+.nav-link:hover {
+    background-color: rgba(255, 255, 255, 0.1);
+}
+
+/* Main container */
+.container {
+    max-width: 1400px;
+    margin: var(--nav-height) auto 0;
+    padding: 2rem;
+    min-height: calc(100vh - var(--nav-height));
+}
+
+/* Settings page styles */
+.settings-container {
+    max-width: 800px;
+    margin: 2rem auto;
+    padding: 0 1rem;
+}
+
+.settings-section {
+    background: var(--card-background);
+    border-radius: 8px;
+    padding: 1.5rem;
+    margin-bottom: 2rem;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.danger-zone {
+    border: 1px solid var(--danger-color);
+    border-radius: 8px;
+}
+
+.danger-zone h2 {
+    color: var(--danger-color);
+    margin-top: 0;
+}
+
+.danger-action {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 2rem;
+}
+
+.danger-info {
+    flex: 1;
+}
+
+.danger-info h3 {
+    margin: 0;
+    color: var(--text-primary);
+}
+
+.danger-info p {
+    color: var(--text-secondary);
+    margin: 0.5rem 0 0;
+}
+
+.btn-danger {
+    background-color: var(--danger-color);
+    color: white;
+    border: none;
+    padding: 0.75rem 1.5rem;
+    border-radius: 6px;
+    cursor: pointer;
+    font-weight: 600;
+    transition: background-color 0.2s;
+}
+
+.btn-danger:hover {
+    background-color: var(--danger-dark);
+}
+
+/* Modal styles */
+.modal {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.5);
+    z-index: 1000;
+}
+
+.modal-content {
+    background-color: var(--card-background);
+    margin: 15% auto;
+    padding: 1.5rem;
+    border-radius: 8px;
+    max-width: 500px;
+    position: relative;
+}
+
+.modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+}
+
+.modal-header h2 {
+    margin: 0;
+    color: var(--danger-color);
+}
+
+.close {
+    color: var(--text-secondary);
+    font-size: 1.5rem;
+    font-weight: bold;
+    cursor: pointer;
+}
+
+.close:hover {
+    color: var(--text-primary);
+}
+
+.modal-body {
+    margin-bottom: 1.5rem;
+}
+
+.modal-body ul {
+    margin: 1rem 0;
+    padding-left: 1.5rem;
+    color: var(--text-secondary);
+}
+
+.modal-footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: 1rem;
+}
+
+.btn {
+    background-color: var(--background-color);
+    color: var(--text-primary);
+    border: 1px solid var(--text-secondary);
+    padding: 0.75rem 1.5rem;
+    border-radius: 6px;
+    cursor: pointer;
+    font-weight: 600;
+}
+
+.btn:hover {
+    background-color: var(--text-secondary);
+    color: white;
+}
     --accent-color: #38BDF8;       /* Blue accent for highlights */
     --nav-height: 80px;
     --border-radius: 12px;

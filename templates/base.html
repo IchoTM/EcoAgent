@@ -6,6 +6,7 @@
     <title>{% block title %}EcoAgent - Your AI Sustainability Assistant{% endblock %}</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/chat.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/settings.css') }}">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/github-markdown-css/5.2.0/github-markdown.min.css">
     <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
@@ -20,6 +21,7 @@
             <a href="{{ url_for('dashboard') }}" class="nav-link">Dashboard</a>
             <a href="{{ url_for('analytics') }}" class="nav-link">Analytics</a>
             <a href="{{ url_for('data_entry') }}" class="nav-link">Add Data</a>
+            <a href="{{ url_for('settings') }}" class="nav-link"><i class="fas fa-gear"></i> Settings</a>
             <a href="{{ url_for('logout') }}" class="nav-link">Logout</a>
         </div>
         {% endblock sidebar %}

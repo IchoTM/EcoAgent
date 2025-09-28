@@ -16,13 +16,19 @@ class User(Base):
     email = Column(String, unique=True, nullable=False)
     name = Column(String)
     created_at = Column(DateTime, default=datetime.utcnow)
-    consumption_data = relationship("ConsumptionData", back_populates="user")
+    # Add cascade delete to ensure all related data is deleted
+    consumption_data = relationship(
+        "ConsumptionData",
+        back_populates="user",
+        cascade="all, delete-orphan",
+        passive_deletes=True
+    )
 
 class ConsumptionData(Base):
     __tablename__ = 'consumption_data'
     
     id = Column(Integer, primary_key=True)
-    user_id = Column(Integer, ForeignKey('users.id'), nullable=False)
+    user_id = Column(Integer, ForeignKey('users.id', ondelete='CASCADE'), nullable=False)
     timestamp = Column(DateTime, default=datetime.utcnow)
     
     # Energy data

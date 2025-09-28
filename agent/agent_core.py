@@ -159,13 +159,36 @@ class EcoAgent:
         Carbon Impact Analysis:
         """
 
-        # Calculate carbon impact if data is available
+        # Calculate carbon impact using EPA emission factors
+        total_carbon = 0
+        
+        # Electricity: 0.85 lbs CO2/kWh (EPA 2021 eGRID national average)
         if latest.get('electricity'):
-            context += f"- Electricity carbon footprint: {round(latest['electricity'] * 0.92, 2)} lbs CO2/month\n"
+            electricity_carbon = round(latest['electricity'] * 0.85, 2)
+            total_carbon += electricity_carbon
+            context += f"- Electricity carbon footprint: {electricity_carbon} lbs CO2/month\n"
+            
+        # Natural gas: 11.7 lbs CO2/therm (EPA)
         if latest.get('gas'):
-            context += f"- Natural gas carbon footprint: {round(latest['gas'] * 11.7, 2)} lbs CO2/month\n"
+            gas_carbon = round(latest['gas'] * 11.7, 2)
+            total_carbon += gas_carbon
+            context += f"- Natural gas carbon footprint: {gas_carbon} lbs CO2/month\n"
+            
+        # Vehicle: 0.404 kg CO2/mile = 0.89 lbs CO2/mile (EPA)
         if latest.get('car_miles'):
-            context += f"- Vehicle carbon footprint: {round(latest['car_miles'] * 0.887, 2)} lbs CO2/month\n"
+            vehicle_carbon = round(latest['car_miles'] * 0.89, 2)
+            total_carbon += vehicle_carbon
+            context += f"- Vehicle carbon footprint: {vehicle_carbon} lbs CO2/month\n"
+            
+        if total_carbon > 0:
+            # Calculate national average total for comparison
+            avg_total_carbon = (
+                AVG_ELECTRICITY * 0.85 +  # Electricity
+                AVG_GAS * 11.7 +         # Natural gas
+                AVG_CAR_MILES * 0.89     # Vehicle
+            )
+            context += f"\nTotal monthly carbon footprint: {round(total_carbon, 2)} lbs CO2"
+            context += f"\nNational average: {round(avg_total_carbon, 2)} lbs CO2\n"
 
         context += f"""
         User's Question: {message}

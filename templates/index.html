@@ -11,7 +11,6 @@
             <div class="comparison {% if stats.carbon_footprint < stats.avg_us_carbon %}better{% else %}worse{% endif %}">
                 {{ "%.1f"|format(stats.carbon_footprint/stats.avg_us_carbon*100) }}% of US average
             </div>
-            </div>
         </div>
         
         <div class="stat-card">
@@ -31,24 +30,12 @@
         </div>
     </div>
     
-    <div class="grid">
-        <div class="card">
-            <div id="energy-chart"></div>
-        </div>
-        
-        <div class="card">
-            <div id="transport-chart"></div>
-        </div>
     </div>
 </div>
 {% endblock %}
 
 {% block scripts %}
 <script>
-    // Initialize charts
-    Plotly.newPlot('energy-chart', {{ charts.energy | safe }});
-    Plotly.newPlot('transport-chart', {{ charts.transport | safe }});
-    
     // Form submission
     document.getElementById('consumption-form').addEventListener('submit', async (e) => {
         e.preventDefault();

@@ -463,10 +463,10 @@ body:not(.home-page) {
 
 /* Summary Stats */
 .summary-stats {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    display: flex;
+    justify-content: space-between;
     gap: 1.5rem;
-    margin-bottom: 2rem;
+    margin: 2rem 0;
 }
 
 .stat-card {
@@ -474,6 +474,7 @@ body:not(.home-page) {
     border-radius: 10px;
     padding: 1.5rem;
     text-align: center;
+    flex: 1;
 }
 
 .stat-card h3 {

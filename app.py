@@ -148,17 +148,7 @@ def dashboard():
         # Calculate user statistics
         stats = calculate_user_stats(consumption_data)
         
-        # Create charts
-        energy_fig = create_energy_chart(consumption_data)
-        transport_fig = create_transport_chart(consumption_data)
-        
-        # Convert charts to JSON for rendering
-        charts = {
-            'energy': json.dumps(energy_fig, cls=plotly.utils.PlotlyJSONEncoder),
-            'transport': json.dumps(transport_fig, cls=plotly.utils.PlotlyJSONEncoder)
-        }
-        
-        return render_template('index.html', charts=charts, stats=stats)
+        return render_template('index.html', stats=stats)
         
     except Exception as e:
         app.logger.error(f"Error loading dashboard: {str(e)}")

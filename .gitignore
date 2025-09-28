@@ -1,14 +1,58 @@
-# Python-generated files
+# Python
 __pycache__/
-*.py[oc]
+*.py[cod]
+*$py.class
+*.so
+.Python
 build/
+develop-eggs/
 dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
 wheels/
-*.egg-info
+*.egg-info/
+.installed.cfg
+*.egg
 
 # Virtual environments
 .venv
-
-# Environment Varibles and Databases
+venv/
+ENV/
+env/
 .env
+
+# IDEs and editors
+.idea/
+.vscode/
+*.swp
+*.swo
+*.swn
+.DS_Store
+
+# Local development
+*.db
 ecoagent.db
+instance/
+*.sqlite
+*.sqlite3
+
+# Logs and temporary files
+*.log
+*.tmp
+.coverage
+htmlcov/
+.pytest_cache/
+.mypy_cache/
+
+# Sensitive files
+private_keys.json
+*.pem
+*.key
+*.crt
+auth_config.json

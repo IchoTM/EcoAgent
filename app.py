@@ -5,8 +5,20 @@ Flask Application
 """
 
 import asyncio
+import os
 from datetime import datetime
 from functools import wraps
+from dotenv import load_dotenv
+
+# Load environment variables
+load_dotenv()
+
+# Debug: Check if API key is loaded (only show first/last 4 chars for security)
+api_key = os.getenv('GOOGLE_API_KEY')
+if api_key:
+    print(f"API Key found: {api_key[:4]}...{api_key[-4:]}")
+else:
+    print("API Key not found in environment")
 from urllib.parse import urlencode
 from flask import Flask, render_template, request, jsonify, session, redirect, url_for
 import plotly
@@ -549,9 +561,12 @@ def logout():
     session.clear()
     
     try:
+        # Get base URL from environment or use Render URL as default
+        base_url = os.environ.get('BASE_URL', 'https://ecoagent-y0vt.onrender.com')
+        
         # Construct Auth0 logout URL
         params = {
-            'returnTo': 'http://localhost:8501/',  # Include trailing slash
+            'returnTo': f"{base_url}/",  # Include trailing slash
             'client_id': auth_client.client_id
         }
         logout_url = f"https://{auth_client.domain}/v2/logout?{urlencode(params)}"

@@ -5,6 +5,7 @@ import asyncio
 import os
 import random
 import threading
+import logging
 from typing import Optional, Dict, Any
 from datetime import datetime, timedelta
 import google.generativeai as genai
@@ -12,22 +13,43 @@ from uagents import Agent, Context, Model
 from dotenv import load_dotenv
 from database import ConsumptionData, get_session
 
+# Initialize logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+logging.getLogger('google.generativeai').setLevel(logging.DEBUG)
+
 # Load environment variables
 load_dotenv()
 
 # Configure Gemini
 GOOGLE_API_KEY = os.getenv('GOOGLE_API_KEY')
 if not GOOGLE_API_KEY:
+    logger.error("GOOGLE_API_KEY environment variable is not set")
+    logger.error("Please ensure you have:")
+    logger.error("1. Created a .env file in the project root")
+    logger.error("2. Added GOOGLE_API_KEY=your-api-key to the .env file")
+    logger.error("3. Installed python-dotenv if not already installed")
+    logger.error("4. Added 'from dotenv import load_dotenv; load_dotenv()' at the top of your script")
     raise ValueError("GOOGLE_API_KEY environment variable is not set")
     
 try:
     genai.configure(api_key=GOOGLE_API_KEY)
+    
+    # Create a test model to verify the configuration
+    try:
+        model = genai.GenerativeModel('gemini-2.5-flash')
+        # Test with a simple prompt to verify complete functionality
+        response = model.generate_content("Test")
+        logger.info("Successfully configured and tested Gemini API")
+    except Exception as model_error:
+        logger.error(f"Error initializing/testing Gemini model: {str(model_error)}")
+        logger.error("If you see a 'thinking' parameter error, ensure you're using google-generativeai version 0.8.5 or later")
+        raise
+        
 except Exception as e:
-    print(f"Error configuring Gemini: {str(e)}")
+    logger.error(f"Error configuring Gemini: {str(e)}")
+    logger.error("Please verify your Google API key has access to the Gemini API")
     raise
-
-# Initialize logging
-import logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
@@ -252,14 +274,54 @@ class EcoAgent:
 
             # Get response from Gemini
             try:
-                # Initialize model with full path
-                model = genai.GenerativeModel('models/gemini-2.5-flash')  # Using the flash model which is available
-                response = model.generate_content(prompt)
+                # Initialize model with correct model name (without 'models/' prefix)
+                model = genai.GenerativeModel('gemini-2.5-flash')
                 
-                if not response.text:
-                    return "I apologize, but I received an empty response. Please try asking your question again."
-                    
-                return response.text
+                # Add retry logic for potential network issues
+                max_retries = 3
+                retry_count = 0
+                
+                while retry_count < max_retries:
+                    try:
+                        print(f"DEBUG: Attempting to generate content (attempt {retry_count + 1})")
+                        print(f"DEBUG: Prompt length: {len(prompt)} characters")
+                        print(f"DEBUG: First 100 chars of prompt: {prompt[:100]}")
+                        
+                        response = model.generate_content(
+                            prompt,
+                            generation_config={
+                                'temperature': 0.7,
+                                'top_k': 40,
+                                'top_p': 0.95,
+                                'max_output_tokens': 1024,
+                            }
+                        )
+                        
+                        if response and hasattr(response, 'text') and response.text:
+                            print(f"DEBUG: Successfully generated response of length: {len(response.text)}")
+                            return response.text
+                        
+                        print(f"DEBUG: Empty response received, attempt {retry_count + 1} of {max_retries}")
+                        print(f"DEBUG: Response object: {response}")
+                        
+                        retry_count += 1
+                        if retry_count < max_retries:
+                            import time
+                            time.sleep(2)  # Increased wait time between retries
+                    except Exception as inner_e:
+                        print(f"DEBUG: Error during generation attempt {retry_count + 1}")
+                        print(f"DEBUG: Error type: {type(inner_e)}")
+                        print(f"DEBUG: Error message: {str(inner_e)}")
+                        print(f"DEBUG: API Key length: {len(GOOGLE_API_KEY)} characters")
+                        
+                        retry_count += 1
+                        if retry_count < max_retries:
+                            import time
+                            time.sleep(2)
+                        else:
+                            raise
+                
+                return "I apologize, but I encountered an issue generating a response. This might be due to an API configuration issue. Please try again later."
             except Exception as e:
                 print(f"DEBUG: Error in Gemini content generation: {str(e)}")
                 print(f"DEBUG: Error type: {type(e)}")

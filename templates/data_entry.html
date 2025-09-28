@@ -4,7 +4,9 @@
 
 {% block head %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/components.css') }}">
 <link rel="stylesheet" href="{{ url_for('static', filename='css/data_entry.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/modal.css') }}">
 {% endblock %}
 
 {% block content %}
@@ -52,9 +54,68 @@
 {{ super() }}
 {% endblock sidebar %}
 
+<!-- Success Modal -->
+<div id="successModal" class="modal-overlay">
+    <div class="modal">
+        <div class="modal-header">
+            <div class="icon success">
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="20 6 9 17 4 12"></polyline>
+                </svg>
+            </div>
+            <h2 class="modal-title">Success!</h2>
+        </div>
+        <div class="modal-content">
+            Your consumption data has been successfully saved. Would you like to view your updated dashboard?
+        </div>
+        <div class="modal-actions">
+            <button class="secondary" onclick="closeModal('successModal')">Stay Here</button>
+            <button class="primary" onclick="window.location.href='/dashboard'">View Dashboard</button>
+        </div>
+    </div>
+</div>
+
+<!-- Error Modal -->
+<div id="errorModal" class="modal-overlay">
+    <div class="modal">
+        <div class="modal-header">
+            <div class="icon error">
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="10"></circle>
+                    <line x1="12" y1="8" x2="12" y2="12"></line>
+                    <line x1="12" y1="16" x2="12.01" y2="16"></line>
+                </svg>
+            </div>
+            <h2 class="modal-title">Error</h2>
+        </div>
+        <div class="modal-content" id="errorMessage">
+            An error occurred while saving your data.
+        </div>
+        <div class="modal-actions">
+            <button class="primary" onclick="closeModal('errorModal')">Close</button>
+        </div>
+    </div>
+</div>
+
 {% block scripts %}
 {{ super() }}
 <script>
+    function showModal(modalId) {
+        const modal = document.getElementById(modalId);
+        modal.style.display = 'block';
+        setTimeout(() => {
+            modal.querySelector('.modal').classList.add('show');
+        }, 10);
+    }
+
+    function closeModal(modalId) {
+        const modal = document.getElementById(modalId);
+        modal.querySelector('.modal').classList.remove('show');
+        setTimeout(() => {
+            modal.style.display = 'none';
+        }, 300);
+    }
+
     document.getElementById('consumption-form').addEventListener('submit', async (e) => {
         e.preventDefault();
         
@@ -82,15 +143,25 @@
             console.log('Server response:', result);
             
             if (response.ok) {
-                alert('Data saved successfully!');
-                window.location.href = '/dashboard';
+                showModal('successModal');
             } else {
-                alert(`Error: ${result.message || 'Failed to save data'}`);
+                document.getElementById('errorMessage').textContent = result.message || 'Failed to save data';
+                showModal('errorModal');
             }
         } catch (error) {
             console.error('Error:', error);
-            alert('Error submitting data: ' + error.message);
+            document.getElementById('errorMessage').textContent = error.message || 'An unexpected error occurred';
+            showModal('errorModal');
         }
+    });
+
+    // Close modals when clicking outside
+    document.querySelectorAll('.modal-overlay').forEach(modal => {
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) {
+                closeModal(modal.id);
+            }
+        });
     });
 </script>
 {% endblock scripts %}

@@ -19,15 +19,19 @@ import plotly.graph_objects as go
 import json
 from auth import Auth, AuthError
 
-# Create Flask app and set secret key
+# Create Flask app and set configurations
 app = Flask(__name__)
 app.secret_key = os.getenv('FLASK_SECRET_KEY', os.urandom(24))
+app.config['SESSION_TYPE'] = 'filesystem'
+app.config['AUTH0_CALLBACK_URL'] = os.getenv('AUTH0_CALLBACK_URL')
+app.config['AUTH0_CLIENT_ID'] = os.getenv('AUTH0_CLIENT_ID')
+app.config['AUTH0_CLIENT_SECRET'] = os.getenv('AUTH0_CLIENT_SECRET')
+app.config['AUTH0_DOMAIN'] = os.getenv('AUTH0_DOMAIN')
+
 from database import ConsumptionData, User, get_session
 from agent_web_interface import WebAgentInterface
 from agents.agent_manager import start_agents
 import asyncio
-
-app = Flask(__name__)
 app.secret_key = 'your-secure-key'  # Replace with a secure secret key
 app.config['PROXY_FIX_X_PORT'] = 1
 app.config['PROXY_FIX_X_PREFIX'] = 1

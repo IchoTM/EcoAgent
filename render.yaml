@@ -15,3 +15,15 @@ services:
         sync: false
       - key: RENDER_EXTERNAL_URL
         value: https://ecoagent-y0vt.onrender.com
+      - key: AUTH0_DOMAIN
+        value: dev-18r2p4qqn455lu5r.us.auth0.com
+      - key: AUTH0_CLIENT_ID
+        value: mbvvd61wTHFXKCb9LLhHDLlUSGPHldgG
+      - key: AUTH0_CLIENT_SECRET
+        sync: false
+      - key: AUTH0_CALLBACK_URL
+        value: https://ecoagent-y0vt.onrender.com/callback
+      - key: AUTH0_M2M_CLIENT_ID
+        value: 1V8UUCjzM6DJ9vmMuL3ECX3bdz98BvJx
+      - key: AUTH0_M2M_CLIENT_SECRET
+        sync: false

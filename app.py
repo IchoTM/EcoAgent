@@ -9,8 +9,15 @@ from datetime import datetime, timedelta
 from functools import wraps
 from dotenv import load_dotenv
 
-# Load environment variables
+# Load environment variables and private keys
 load_dotenv()
+try:
+    with open('private_keys.json', 'r') as f:
+        private_keys = json.load(f)
+        os.environ['FLASK_SECRET_KEY'] = private_keys.get('flask_secret_key')
+except Exception as e:
+    print(f"Error loading private keys: {e}")
+
 from urllib.parse import urlencode
 from flask import Flask, render_template, request, jsonify, session, redirect, url_for
 import plotly
@@ -22,12 +29,8 @@ from auth import Auth, AuthError
 # Create Flask app and set configurations
 app = Flask(__name__)
 
-# Simple session configuration
-app.secret_key = 'dev-key-123'
-app.config['SESSION_TYPE'] = 'filesystem'
-app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(minutes=30)
-
 # Session configuration
+app.secret_key = os.environ.get('FLASK_SECRET_KEY') or os.urandom(24)
 from flask_session import Session
 app.config['SESSION_TYPE'] = 'filesystem'
 app.config['SESSION_PERMANENT'] = False

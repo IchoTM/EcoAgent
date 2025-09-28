@@ -26,6 +26,7 @@ venv/
 ENV/
 env/
 .env
+private_keys.json
 
 # IDEs and editors
 .idea/

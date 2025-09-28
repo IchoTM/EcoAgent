@@ -4,12 +4,17 @@
 
 {% block head %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/data_entry.css') }}">
 {% endblock %}
 
 {% block content %}
 <div class="data-entry">
     <h1>Add Consumption Data</h1>
     
+    <div class="note">
+        <p><strong>Note:</strong> For best results, enter your monthly consumption data all at once at the end of each month. This ensures the most accurate tracking and analysis of your environmental impact.</p>
+    </div>
+
     <div class="card">
         <form id="consumption-form">
             <div class="form-group">

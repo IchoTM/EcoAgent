@@ -1,0 +1,18 @@
+/* Styles for data entry page */
+.note {
+    background-color: #F0FDF4;
+    border: 1px solid var(--primary-color);
+    border-radius: var(--border-radius);
+    padding: 1rem;
+    margin-bottom: 2rem;
+    color: var(--text-primary);
+}
+
+.note p {
+    margin: 0;
+    line-height: 1.5;
+}
+
+.note strong {
+    color: var(--primary-dark);
+}

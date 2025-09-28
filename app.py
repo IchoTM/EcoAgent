@@ -119,11 +119,16 @@ def calculate_user_stats(consumption_data):
     print(f"Annual total: {carbon:.2f} tons CO2/year")
     print(f"US average: 16 tons CO2/year")
     
-    energy = sum([(d.electricity or 0) for d in recent_data]) / len(recent_data)
-    water = sum([(d.water or 0) for d in recent_data]) / len(recent_data)
-    
-    # Calculate total miles (car + public transport)
-    miles = sum([((d.car_miles or 0) + (d.public_transport or 0)) for d in recent_data]) / len(recent_data)
+    # For single data points, use the most recent value
+    if len(recent_data) == 1:
+        energy = recent_data[0].electricity or 0
+        water = recent_data[0].water or 0
+        miles = (recent_data[0].car_miles or 0) + (recent_data[0].public_transport or 0)
+    else:
+        # For multiple data points, use the most recent non-zero value
+        energy = next((d.electricity for d in recent_data if d.electricity), 0)
+        water = next((d.water for d in recent_data if d.water), 0)
+        miles = next(((d.car_miles or 0) + (d.public_transport or 0) for d in recent_data if d.car_miles or d.public_transport), 0)
     
     return {
         'carbon_footprint': round(carbon, 1),

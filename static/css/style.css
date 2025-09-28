@@ -54,9 +54,13 @@ body:not(.home-page) {
 }
 
 .topnav h1 {
-    color: var(--text-color);
     margin: 0;
     font-size: 1.8rem;
+    font-weight: 700;
+    background: linear-gradient(120deg, var(--primary-color), var(--accent-color));
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
 }
 
 .nav-links {
@@ -67,7 +71,8 @@ body:not(.home-page) {
 }
 
 .nav-link {
-    color: var(--text-primary);
+    background: linear-gradient(120deg, var(--primary-color), var(--accent-color));
+    color: white;
     text-decoration: none;
     padding: 0.5rem 1.25rem;
     border-radius: var(--border-radius);
@@ -76,37 +81,16 @@ body:not(.home-page) {
     align-items: center;
     height: 40px;
     font-weight: 500;
-    position: relative;
-    overflow: hidden;
-}
-
-.nav-link::before {
-    content: '';
-    position: absolute;
-    bottom: 0;
-    left: 50%;
-    transform: translateX(-50%);
-    width: 0;
-    height: 3px;
-    background: linear-gradient(120deg, var(--primary-color), var(--accent-color));
-    transition: width 0.2s ease;
-    border-radius: 3px 3px 0 0;
+    border: none;
 }
 
 .nav-link:hover {
-    color: var(--primary-color);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(52, 211, 153, 0.3);
+    color: white;
 }
 
-.nav-link:hover::before {
-    width: 100%;
-}
-
-/* Home page specific styles */
-.home-nav {
-    background-color: rgba(44, 62, 80, 0.95);
-    backdrop-filter: blur(8px);
-}
-
+/* Login button styles */
 .login-btn {
     background: linear-gradient(120deg, var(--primary-color), var(--accent-color));
     color: white;
@@ -221,22 +205,22 @@ body:not(.home-page) {
 .btn-primary {
     background: linear-gradient(120deg, var(--primary-color), var(--accent-color));
     color: white;
-    padding: 1rem 2.5rem;
+    padding: 0.5rem 1.25rem;
     border-radius: var(--border-radius);
     text-decoration: none;
-    font-weight: 600;
-    font-size: 1.1rem;
+    font-weight: 500;
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    gap: 0.5rem;
-    transition: all 0.2s ease;
+    height: 40px;
+    min-width: 120px;
     border: none;
-    letter-spacing: 0.3px;
+    transition: all 0.2s ease;
+    text-align: center;
 }
 
 .btn-primary:hover {
-    transform: translateY(-2px);
+    transform: translateY(-1px);
     box-shadow: 0 4px 12px rgba(52, 211, 153, 0.3);
 }
 
@@ -418,14 +402,52 @@ input::placeholder {
     font-size: 1.3rem;
 }
 
-/* Charts */
-#energy-chart, #transport-chart {
+/* Analytics Page */
+.analytics-container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 2rem;
+}
+
+.analytics-container h2 {
+    font-size: 2.5rem;
+    margin-bottom: 1rem;
+    color: var(--text-primary);
+    font-weight: 800;
+}
+
+.chart-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(500px, 1fr));
+    gap: 2rem;
+    margin-top: 2rem;
+}
+
+.chart-card {
+    background-color: var(--card-background);
+    border-radius: var(--border-radius);
+    padding: 1.5rem;
+    box-shadow: var(--shadow-md);
+    border: 1px solid rgba(0,0,0,0.05);
+}
+
+.chart-card h3 {
+    font-size: 1.25rem;
+    margin-bottom: 0.5rem;
+    color: var(--text-primary);
+}
+
+.chart-description {
+    color: var(--text-secondary);
+    font-size: 0.95rem;
+    margin-bottom: 1rem;
+}
+
+.chart {
     width: 100%;
-    height: 400px;
-    background-color: white;
-    border-radius: 10px;
-    padding: 1rem;
-    margin-top: 1rem;
+    height: 300px;
+    background-color: var(--card-background);
+    border-radius: var(--border-radius);
 }
 
 /* Responsive design */

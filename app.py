@@ -40,9 +40,11 @@ def calculate_user_stats(consumption_data):
             'carbon_footprint': 0,
             'energy_usage': 0,
             'water_usage': 0,
+            'miles_traveled': 0,
             'avg_us_carbon': 16,  # Average US carbon footprint in tons per year
-            'avg_us_energy': 893,  # Average US household monthly kWh usage
-            'avg_us_water': 8800  # Average US household monthly water usage in gallons
+            'avg_us_energy': 877,  # Average US household monthly kWh usage
+            'avg_us_water': 8800,  # Average US household monthly water usage in gallons
+            'avg_us_miles': 1200  # Average US household monthly miles traveled
         }
     
     # Calculate averages from the last 30 days of data
@@ -59,13 +61,18 @@ def calculate_user_stats(consumption_data):
     energy = sum([d.electricity for d in recent_data]) / len(recent_data)
     water = sum([d.water for d in recent_data]) / len(recent_data)
     
+    # Calculate total miles (car + public transport)
+    miles = sum([(d.car_miles + d.public_transport) for d in recent_data]) / len(recent_data)
+    
     return {
         'carbon_footprint': round(carbon, 1),
         'energy_usage': round(energy, 0),
         'water_usage': round(water, 0),
-        'avg_us_carbon': 16,
-        'avg_us_energy': 893,
-        'avg_us_water': 8800
+        'miles_traveled': round(miles, 0),
+        'avg_us_carbon': 16,  # Average US carbon footprint in tons per year
+        'avg_us_energy': 877,  # Average US household monthly kWh usage
+        'avg_us_water': 8800,  # Average US household monthly water usage in gallons
+        'avg_us_miles': 1200  # Average US household monthly miles traveled
     }
 
 @app.route('/')
@@ -74,6 +81,26 @@ def home():
     if 'user' in session:
         session.clear()
     return render_template('login.html')
+
+@app.route('/analytics')
+@login_required
+def analytics():
+    db = get_session()
+    try:
+        user = db.query(User).filter_by(auth0_id=session['user']['id']).first()
+        if not user:
+            return redirect(url_for('login'))
+        
+        consumption_data = db.query(ConsumptionData).filter_by(user_id=user.id).all()
+        stats = calculate_user_stats(consumption_data)
+        
+        return render_template('analytics.html', 
+                             user_energy=stats['energy_usage'],
+                             user_water=stats['water_usage'],
+                             user_miles=stats['miles_traveled'],
+                             user_carbon=stats['carbon_footprint'] * 2000)  # Convert tons to pounds
+    finally:
+        db.close()
 
 @app.route('/dashboard')
 @login_required

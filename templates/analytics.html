@@ -1,0 +1,95 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="analytics-container">
+    <h2>Your Sustainability Analytics</h2>
+    <p class="lead">Compare your environmental impact with U.S. national averages</p>
+
+    <div class="chart-grid">
+        <div class="chart-card">
+            <h3>Energy Consumption</h3>
+            <p class="chart-description">Monthly household energy usage (kWh)</p>
+            <div id="energy-chart" class="chart"></div>
+        </div>
+
+        <div class="chart-card">
+            <h3>Water Usage</h3>
+            <p class="chart-description">Monthly water consumption (Gallons)</p>
+            <div id="water-chart" class="chart"></div>
+        </div>
+
+        <div class="chart-card">
+            <h3>Transportation Impact</h3>
+            <p class="chart-description">Monthly miles traveled</p>
+            <div id="transport-chart" class="chart"></div>
+        </div>
+
+        <div class="chart-card">
+            <h3>Carbon Footprint</h3>
+            <p class="chart-description">Monthly CO2 emissions (lbs)</p>
+            <div id="carbon-chart" class="chart"></div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Energy Chart
+    const energyData = {
+        userValue: {{ user_energy }},
+        nationalAvg: 877, // Average US household uses ~877 kWh per month
+        title: 'Energy Consumption (kWh/month)'
+    };
+    createComparisonChart('energy-chart', energyData);
+
+    // Water Chart
+    const waterData = {
+        userValue: {{ user_water }},
+        nationalAvg: 8800, // Average US household uses ~8,800 gallons per month
+        title: 'Water Usage (Gallons/month)'
+    };
+    createComparisonChart('water-chart', waterData);
+
+    // Transportation Chart
+    const transportData = {
+        userValue: {{ user_miles }},
+        nationalAvg: 1200, // Average US household drives ~1,200 miles per month
+        title: 'Miles Traveled per Month'
+    };
+    createComparisonChart('transport-chart', transportData);
+
+    // Carbon Footprint Chart
+    const carbonData = {
+        userValue: {{ user_carbon }},
+        nationalAvg: 4000, // Average US household CO2 emissions ~4,000 lbs per month
+        title: 'CO2 Emissions (lbs/month)'
+    };
+    createComparisonChart('carbon-chart', carbonData);
+});
+
+function createComparisonChart(elementId, data) {
+    const trace1 = {
+        x: ['Your Usage', 'U.S. Average'],
+        y: [data.userValue, data.nationalAvg],
+        type: 'bar',
+        marker: {
+            color: ['#34D399', '#64748B']
+        }
+    };
+
+    const layout = {
+        title: data.title,
+        height: 300,
+        margin: { t: 40, r: 20, l: 40, b: 40 },
+        font: {
+            family: 'Inter, sans-serif'
+        },
+        paper_bgcolor: 'rgba(0,0,0,0)',
+        plot_bgcolor: 'rgba(0,0,0,0)',
+        bargap: 0.3
+    };
+
+    Plotly.newPlot(elementId, [trace1], layout, {responsive: true});
+}
+</script>
+{% endblock %}

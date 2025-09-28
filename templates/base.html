@@ -3,10 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>EcoAgent - Your AI Sustainability Assistant</title>
+    <title>{% block title %}EcoAgent - Your AI Sustainability Assistant{% endblock %}</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/chat.css') }}">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/github-markdown-css/5.2.0/github-markdown.min.css">
     <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    {% block head %}{% endblock %}
 </head>
 <body>
     <nav class="topnav">
@@ -18,22 +22,24 @@
             <a href="{{ url_for('data_entry') }}" class="nav-link">Add Data</a>
             <a href="{{ url_for('logout') }}" class="nav-link">Logout</a>
         </div>
-        {% endblock %}
+        {% endblock sidebar %}
     </nav>
     
     <div class="container">
         <main class="main-content">
-            {% block content %}{% endblock %}
+            {% block content %}
+            {% endblock content %}
         </main>
     </div>
     
+    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+    {% block scripts %}
+    {% endblock scripts %}
+
     {% if 'user' in session %}
     <a href="{{ url_for('chat') }}" class="chat-button" title="Chat with EcoAgent">
         <i class="fas fa-comments"></i>
     </a>
     {% endif %}
-    
-    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
-    {% block scripts %}{% endblock %}
 </body>
 </html>

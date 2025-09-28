@@ -12,6 +12,19 @@ bureau = Bureau()
 bureau.add(eco_monitor)
 bureau.add(eco_advisor)
 
+import asyncio
+
 def start_agents():
     """Start all agents in the bureau"""
-    bureau.run()
+    try:
+        # Create a new event loop for this thread
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        
+        # Run the bureau asynchronously
+        loop.create_task(bureau.run_async())
+        loop.run_forever()
+    except Exception as e:
+        print(f"Error starting agents: {e}")
+    finally:
+        loop.close()

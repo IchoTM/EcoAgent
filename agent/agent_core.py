@@ -121,14 +121,30 @@ class EcoAgent:
                 user_data.update(extra_data)
             
             prompt = self._build_prompt(user_data, message)
-            response = MODEL.generate_content(prompt)
             
-            if not response or not response.text:
+            # Format content for gemini-2.5-flash
+            content = [{
+                "role": "user",
+                "parts": [{"text": prompt}]
+            }]
+            
+            response = MODEL.generate_content(
+                contents=content,
+                generation_config={
+                    "temperature": 0.7,
+                    "top_p": 0.8,
+                    "top_k": 40,
+                    "max_output_tokens": 1024,
+                }
+            )
+            
+            if not response or not hasattr(response, 'text'):
                 raise ValueError("No response generated")
                 
             return response.text.strip()
         except Exception as e:
             logger.error(f"Generation error: {e}")
+            logger.error(f"Error details: {str(e)}")
             return "I apologize, but I encountered an error. Please try again."
 
     def process_request(self, request: SustainabilityRequest) -> SustainabilityResponse:

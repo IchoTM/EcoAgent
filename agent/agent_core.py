@@ -1,54 +1,385 @@
-"""
-EcoAgent core functionality - Using Google's Gemini 2.5-flash for advanced AI capabilities
-"""
-import asyncio
 import os
-import random
-import threading
 import logging
-from typing import Optional, Dict, Any
-from datetime import datetime, timedelta
 import google.generativeai as genai
 from uagents import Agent, Context, Model
+from typing import Optional, Dict, Any
+from datetime import datetime
 from dotenv import load_dotenv
 from database import ConsumptionData, get_session
 
-# Initialize logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
-logging.getLogger('google.generativeai').setLevel(logging.DEBUG)
+load_dotenv()
+
+# Configuration
+GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
+if not GOOGLE_API_KEY:
+    raise ValueError("GOOGLE_API_KEY not set")
+
+genai.configure(api_key=GOOGLE_API_KEY)
+MODEL = genai.GenerativeModel("gemini-2.5-flash")
+
+# Environmental constants (US averages)
+AVG_ELECTRICITY = 893  # kWh/month
+AVG_GAS = 567         # therms/year
+AVG_CAR_MILES = 1146  # miles/month
+
+class SustainabilityRequest(Model):
+    query_type: str
+    user_id: Optional[str] = None
+    message: Optional[str] = None
+    data: Optional[dict] = None
+
+class SustainabilityResponse(Model):
+    status: str
+    message: Optional[str] = None
+    error: Optional[str] = None
+    data: Optional[dict] = None
+
+class EcoAgent:
+    def __init__(self):
+        self.agent = Agent(
+            name="eco_agent",
+            seed="eco_agent_seed"
+        )
+        self.setup_message_handlers()
+
+    def _get_user_data(self, user_id: str) -> Dict[str, Any]:
+        try:
+            session = get_session()
+            data = session.query(ConsumptionData).filter(
+                ConsumptionData.user_id == user_id
+            ).order_by(
+                ConsumptionData.timestamp.desc()
+            ).first()
+            
+            if not data:
+                return {}
+                
+            return {
+                "electricity": data.electricity,
+                "gas": data.gas,
+                "car_miles": data.car_miles,
+                "timestamp": data.timestamp.isoformat()
+            }
+        except Exception as e:
+            logger.error(f"Database error: {e}")
+            return {}
+
+    def _build_prompt(self, user_data: Dict[str, Any], query: str) -> str:
+        prompt = []
+        total_carbon = 0
+
+        if user_data:
+            if "electricity" in user_data:
+                elec_carbon = user_data["electricity"] * 0.85
+                total_carbon += elec_carbon
+                prompt.append(f"Electricity: {user_data['electricity']} kWh/month")
+                prompt.append(f"Electricity CO2: {elec_carbon:.2f} lbs/month")
+
+            if "gas" in user_data:
+                gas_carbon = user_data["gas"] * 11.7
+                total_carbon += gas_carbon
+                prompt.append(f"Natural gas: {user_data['gas']} therms/month")
+                prompt.append(f"Gas CO2: {gas_carbon:.2f} lbs/month")
+
+            if "car_miles" in user_data:
+                car_carbon = user_data["car_miles"] * 0.89
+                total_carbon += car_carbon
+                prompt.append(f"Driving: {user_data['car_miles']} miles/month")
+                prompt.append(f"Vehicle CO2: {car_carbon:.2f} lbs/month")
+
+            if total_carbon > 0:
+                avg_carbon = (
+                    AVG_ELECTRICITY * 0.85 +
+                    (AVG_GAS / 12) * 11.7 +
+                    AVG_CAR_MILES * 0.89
+                )
+                prompt.append(f"\nTotal CO2: {total_carbon:.2f} lbs/month")
+                prompt.append(f"US Average: {avg_carbon:.2f} lbs/month")
+
+        prompt_text = "\n".join([
+            "Analyze this environmental impact data:",
+            *prompt,
+            f"\nUser Question: {query}",
+            "\nProvide eco-friendly advice that:",
+            "1. Analyzes their consumption patterns",
+            "2. Suggests practical improvements",
+            "3. Compares to national averages",
+            "4. Highlights achievements and areas for improvement",
+            "5. Gives specific sustainability tips",
+            "6. Estimates environmental impact of suggestions",
+            "\nKeep the response encouraging and practical."
+        ])
+
+        return prompt_text
+
+    def _generate_response(self, message: str, user_id: str = None, extra_data: Optional[dict] = None) -> str:
+        try:
+            user_data = self._get_user_data(user_id)
+            if extra_data:
+                user_data.update(extra_data)
+            
+            prompt = self._build_prompt(user_data, message)
+            response = MODEL.generate_content(prompt)
+            
+            if not response or not response.text:
+                raise ValueError("No response generated")
+                
+            return response.text.strip()
+        except Exception as e:
+            logger.error(f"Generation error: {e}")
+            return "I apologize, but I encountered an error. Please try again."
+
+    def process_request(self, request: SustainabilityRequest) -> SustainabilityResponse:
+        try:
+            if request.query_type != "chat":
+                return SustainabilityResponse(
+                    status="error",
+                    error="Unsupported request type"
+                )
+
+            message = self._generate_response(
+                request.message,
+                request.user_id,
+                request.data
+            )
+            
+            return SustainabilityResponse(
+                status="success",
+                message=message,
+                data={"type": "chat"}
+            )
+        except Exception as e:
+            logger.error(f"Request error: {e}")
+            return SustainabilityResponse(
+                status="error",
+                error=str(e)
+            )
+
+    def setup_message_handlers(self):
+        @self.agent.on_message(model=SustainabilityRequest)
+        async def handle_message(ctx: Context, sender: str, msg: SustainabilityRequest):
+            try:
+                response = self.process_request(msg)
+                await ctx.send(sender, response)
+            except Exception as e:
+                logger.error(f"Handler error: {e}")
+                await ctx.send(sender, SustainabilityResponse(
+                    status="error",
+                    error=str(e)
+                ))
+logger = logging.getLogger(__name__)
+
+load_dotenv()
+
+GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
+if not GOOGLE_API_KEY:
+    raise ValueError("GOOGLE_API_KEY environment variable is not set")
+
+genai.configure(api_key=GOOGLE_API_KEY)
+MODEL = genai.GenerativeModel("gemini-pro")
+
+AVG_ELECTRICITY = 893
+AVG_GAS = 567
+AVG_CAR_MILES = 1146
+
+import os
+import logging
+import google.generativeai as genai
+from uagents import Agent, Context, Model
+from typing import Optional, Dict, Any
+from datetime import datetime
+from dotenv import load_dotenv
+from database import ConsumptionData, get_session
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 # Load environment variables
 load_dotenv()
 
-# Configure Gemini
-GOOGLE_API_KEY = os.getenv('GOOGLE_API_KEY')
+# Configure Gemini API
+GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
 if not GOOGLE_API_KEY:
-    logger.error("GOOGLE_API_KEY environment variable is not set")
-    logger.error("Please ensure you have:")
-    logger.error("1. Created a .env file in the project root")
-    logger.error("2. Added GOOGLE_API_KEY=your-api-key to the .env file")
-    logger.error("3. Installed python-dotenv if not already installed")
-    logger.error("4. Added 'from dotenv import load_dotenv; load_dotenv()' at the top of your script")
     raise ValueError("GOOGLE_API_KEY environment variable is not set")
+
+# Initialize Gemini
+genai.configure(api_key=GOOGLE_API_KEY)
+MODEL = genai.GenerativeModel("gemini-pro")
+
+# Constants for environmental calculations
+AVG_ELECTRICITY = 893  # kWh/month (US average)
+AVG_GAS = 567         # Therms/year (US average)
+AVG_CAR_MILES = 1146  # Miles/month (US average)
+
+class SustainabilityRequest(Model):
+    query_type: str
+    user_id: Optional[str] = None
+    message: Optional[str] = None
+    data: Optional[dict] = None
+
+class SustainabilityResponse(Model):
+    status: str
+    message: Optional[str] = None
+    error: Optional[str] = None
+    data: Optional[dict] = None
+
+class EcoAgent:
+    
+    def __init__(self):
+        self.agent = Agent(
+            name="eco_agent",
+            seed="eco_agent_seed"
+        )
+        self.setup_message_handlers()
+
+    def _get_user_consumption_data(self, user_id: str) -> Dict[str, Any]:
+        try:
+            session = get_session()
+            data = session.query(ConsumptionData).filter(
+                ConsumptionData.user_id == user_id
+            ).order_by(
+                ConsumptionData.timestamp.desc()
+            ).first()
+            
+            if data:
+                return {
+                    "electricity": data.electricity,
+                    "gas": data.gas,
+                    "car_miles": data.car_miles,
+                    "timestamp": data.timestamp.isoformat()
+                }
+            return {}
+            
+        except Exception as e:
+            logger.error(f"Error fetching consumption data: {str(e)}")
+            return {}
+
+    def _generate_sustainability_prompt(self, user_data: Dict[str, Any], query: str) -> str:
+        prompt = "As an eco-friendly AI assistant, analyze the following data and query:\n\n"
+        
+        if user_data:
+            latest = user_data
+            total_carbon = 0
+            
+            if latest.get("electricity"):
+                elec_carbon = round(latest["electricity"] * 0.85, 2)
+                total_carbon += elec_carbon
+                prompt += f"Electricity usage: {latest['electricity']} kWh/month\n"
+                prompt += f"Electricity carbon footprint: {elec_carbon} lbs CO2/month\n"
+            
+            if latest.get("gas"):
+                gas_carbon = round(latest["gas"] * 11.7, 2)
+                total_carbon += gas_carbon
+                prompt += f"Natural gas usage: {latest['gas']} therms/month\n"
+                prompt += f"Gas carbon footprint: {gas_carbon} lbs CO2/month\n"
+            
+            if latest.get("car_miles"):
+                vehicle_carbon = round(latest["car_miles"] * 0.89, 2)
+                total_carbon += vehicle_carbon
+                prompt += f"Monthly driving: {latest['car_miles']} miles\n"
+                prompt += f"Vehicle carbon footprint: {vehicle_carbon} lbs CO2/month\n"
+            
+            if total_carbon > 0:
+                avg_total_carbon = (
+                    AVG_ELECTRICITY * 0.85 +
+                    (AVG_GAS / 12) * 11.7 +
+                    AVG_CAR_MILES * 0.89
+                )
+                prompt += f"\nTotal monthly carbon footprint: {round(total_carbon, 2)} lbs CO2\n"
+                prompt += f"National average: {round(avg_total_carbon, 2)} lbs CO2\n\n"
+
+        prompt += f"""
+User Question: {query}
+
+Provide eco-friendly advice that:
+1. Addresses specific consumption patterns
+2. Suggests practical improvements
+3. Compares to averages when relevant
+4. Highlights both achievements and areas for improvement
+5. Gives actionable sustainability tips
+6. Estimates potential environmental impact of suggestions
+
+Keep responses encouraging, practical, and focused on achievable goals."""
+
+        return prompt
+
+    def _generate_chat_response(self, message: str, user_id: str = None, additional_data: Optional[dict] = None) -> str:
+        try:
+            user_data = self._get_user_consumption_data(user_id)
+            if additional_data:
+                user_data.update(additional_data)
+            
+            prompt = self._generate_sustainability_prompt(user_data, message)
+            response = MODEL.generate_content(prompt)
+            
+            if not response or not response.text:
+                raise ValueError("No response generated from AI model")
+                
+            return response.text.strip()
+            
+        except Exception as e:
+            logger.error(f"Error generating chat response: {str(e)}")
+            return "I apologize, but I encountered an error processing your request. Please try again or rephrase your question."
+
+    def process_request(self, request: SustainabilityRequest) -> SustainabilityResponse:
+        try:
+            if request.query_type == "chat":
+                message = self._generate_chat_response(
+                    request.message,
+                    request.user_id,
+                    request.data
+                )
+                return SustainabilityResponse(
+                    status="success",
+                    message=message,
+                    data={"type": "chat"}
+                )
+            else:
+                return SustainabilityResponse(
+                    status="error",
+                    error="Unsupported request type"
+                )
+        except Exception as e:
+            logger.error(f"Error processing request: {str(e)}")
+            return SustainabilityResponse(
+                status="error",
+                error=f"Error: {str(e)}"
+            )
+
+    def setup_message_handlers(self):
+        @self.agent.on_message(model=SustainabilityRequest)
+        async def handle_message(ctx: Context, sender: str, msg: SustainabilityRequest):
+            try:
+                response = self.process_request(msg)
+                await ctx.send(sender, response)
+            except Exception as e:
+                logger.error(f"Error in message handler: {str(e)}")
+                error_response = SustainabilityResponse(
+                    status="error",
+                    error=f"Error processing message: {str(e)}"
+                )
+                await ctx.send(sender, error_response)
     
 try:
+    # Configure Gemini globally
     genai.configure(api_key=GOOGLE_API_KEY)
     
-    # Create a test model to verify the configuration
+    # Test the configuration
     try:
         model = genai.GenerativeModel('gemini-2.5-flash')
-        # Test with a simple prompt to verify complete functionality
         response = model.generate_content("Test")
-        logger.info("Successfully configured and tested Gemini API")
+        if response.text:
+            logger.info("Successfully configured and tested Gemini API")
+        else:
+            raise ValueError("Empty response from Gemini API test")
     except Exception as model_error:
         logger.error(f"Error initializing/testing Gemini model: {str(model_error)}")
-        logger.error("If you see a 'thinking' parameter error, ensure you're using google-generativeai version 0.8.5 or later")
+        logger.error("If you see API errors, verify your API key has access to the Gemini API")
         raise
-        
 except Exception as e:
     logger.error(f"Error configuring Gemini: {str(e)}")
-    logger.error("Please verify your Google API key has access to the Gemini API")
     raise
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -79,12 +410,12 @@ class EcoAgent:
         self._running = False
 
     def _get_user_consumption_data(self, user_id: str) -> Dict[str, Any]:
-        """Retrieve user's consumption data from the database"""
+        """Retrieve user consumption data from the database"""
         session = get_session()
         try:
             from database import User  # Import User model
             
-            # First get the user's ID from auth0_id
+            # First get the user ID from auth0_id
             user = session.query(User).filter_by(auth0_id=user_id).first()
             if not user:
                 return {}
@@ -163,28 +494,25 @@ class EcoAgent:
         AVG_WATER = 7000  # gallons per household
         AVG_CAR_MILES = 1000  # miles per month
 
-        context = f"""You are an advanced AI sustainability advisor with expertise in environmental science, 
-        energy efficiency, and sustainable living. Here is the user's current consumption data and trends:
+        context = f"""As an advanced AI sustainability advisor with expertise in environmental science, energy efficiency, and sustainable living, analyze this user data:
 
-        Current Monthly Consumption:
-        - Electricity: {latest.get('electricity', 'No data')} kWh (US Average: {AVG_ELECTRICITY} kWh)
-        - Natural Gas: {latest.get('gas', 'No data')} therms (US Average: {AVG_GAS} therms)
-        - Water: {latest.get('water', 'No data')} gallons (US Average: {AVG_WATER} gallons)
-        - Car Usage: {latest.get('car_miles', 'No data')} miles (US Average: {AVG_CAR_MILES} miles)
+Monthly Consumption Data:
+* Electricity: {latest.get('electricity', 'No data')} kWh (Average: {AVG_ELECTRICITY} kWh)
+* Natural Gas: {latest.get('gas', 'No data')} therms (Average: {AVG_GAS} therms)
+* Water: {latest.get('water', 'No data')} gallons (Average: {AVG_WATER} gallons)
+* Car Usage: {latest.get('car_miles', 'No data')} miles (Average: {AVG_CAR_MILES} miles)
 
-        30-Day Trends:
-        - Electricity usage is {trends.get('electricity_trend', 'unknown')}
-        - Natural gas usage is {trends.get('gas_trend', 'unknown')}
-        - Water consumption is {trends.get('water_trend', 'unknown')}
-        - Car usage is {trends.get('car_miles_trend', 'unknown')}
+Recent Trends:
+* Electricity: {trends.get('electricity_trend', 'unknown')}
+* Natural Gas: {trends.get('gas_trend', 'unknown')}
+* Water: {trends.get('water_trend', 'unknown')}
+* Car Usage: {trends.get('car_miles_trend', 'unknown')}
 
-        Carbon Impact Analysis:
-        """
+User Question: {message}
 
-        # Calculate carbon impact using EPA emission factors
+Provide a helpful, friendly response focused on sustainability and environmental impact. Use bullet points for any recommendations."""
+
         total_carbon = 0
-        
-        # Electricity: 0.85 lbs CO2/kWh (EPA 2021 eGRID national average)
         if latest.get('electricity'):
             electricity_carbon = round(latest['electricity'] * 0.85, 2)
             total_carbon += electricity_carbon
@@ -212,18 +540,18 @@ class EcoAgent:
             context += f"\nTotal monthly carbon footprint: {round(total_carbon, 2)} lbs CO2"
             context += f"\nNational average: {round(avg_total_carbon, 2)} lbs CO2\n"
 
-        context += f"""
-        User's Question: {message}
+            context += f"""
+Question: {message}
 
-        Please provide personalized advice that:
-        1. Addresses their specific consumption patterns and trends
-        2. Suggests actionable improvements based on their data
-        3. Compares their usage to national averages
-        4. Highlights areas where they're doing well and where they need improvement
-        5. Includes specific tips for reducing their environmental impact
-        6. Estimates potential cost and carbon savings from suggested improvements
+Please provide personalized advice that:
+1. Addresses their specific consumption patterns and trends
+2. Suggests actionable improvements based on their data
+3. Compares their usage to national averages
+4. Highlights areas where they are doing well and where they need improvement
+5. Includes specific tips for reducing their environmental impact
+6. Estimates potential cost and carbon savings from suggested improvements
 
-        Keep the response friendly, encouraging, and focused on achievable goals."""
+Keep the response friendly, encouraging, and focused on achievable goals."""
 
         return context
 
@@ -256,14 +584,12 @@ class EcoAgent:
             await ctx.send(sender, response)
 
     def _generate_chat_response(self, message: str, user_id: str, additional_data: Optional[dict] = None) -> str:
-        """Generate a response using Gemini 2.5-flash with user's consumption data"""
+        """Generate a response using Gemini Pro with the user consumption data"""
         try:
-            print(f"DEBUG: Starting chat response generation for message: {message}")
-            print(f"DEBUG: User ID: {user_id}")
+            logger.info(f"Starting chat response generation for user: {user_id}")
             
-            # Get user's consumption data from database
+            # Get user consumption data from database
             user_data = self._get_user_consumption_data(user_id) if user_id else {}
-            print(f"DEBUG: Retrieved user data: {user_data}")
             
             # Merge with any additional data provided
             if additional_data:
@@ -274,7 +600,7 @@ class EcoAgent:
 
             # Get response from Gemini
             try:
-                # Initialize model with correct model name (without 'models/' prefix)
+                # Use the globally configured Gemini instance
                 model = genai.GenerativeModel('gemini-2.5-flash')
                 
                 # Add retry logic for potential network issues
@@ -283,31 +609,25 @@ class EcoAgent:
                 
                 while retry_count < max_retries:
                     try:
-                        print(f"DEBUG: Attempting to generate content (attempt {retry_count + 1})")
-                        print(f"DEBUG: Prompt length: {len(prompt)} characters")
-                        print(f"DEBUG: First 100 chars of prompt: {prompt[:100]}")
+                        logger.info(f"Attempting to generate content (attempt {retry_count + 1})")
                         
-                        response = model.generate_content(
-                            prompt,
-                            generation_config={
-                                'temperature': 0.7,
-                                'top_k': 40,
-                                'top_p': 0.95,
-                                'max_output_tokens': 1024,
-                            }
-                        )
+                        # Start a chat session
+                        chat = model.start_chat(history=[])
+                        response = chat.send_message(prompt, generation_config={
+                            'temperature': 0.7,
+                            'top_p': 0.95,
+                            'max_output_tokens': 1024,
+                        })
                         
-                        if response and hasattr(response, 'text') and response.text:
-                            print(f"DEBUG: Successfully generated response of length: {len(response.text)}")
+                        if response and response.text:
+                            logger.info(f"Successfully generated response")
                             return response.text
                         
-                        print(f"DEBUG: Empty response received, attempt {retry_count + 1} of {max_retries}")
-                        print(f"DEBUG: Response object: {response}")
-                        
+                        logger.warning(f"Empty response received, attempt {retry_count + 1} of {max_retries}")
                         retry_count += 1
                         if retry_count < max_retries:
                             import time
-                            time.sleep(2)  # Increased wait time between retries
+                            time.sleep(2)  # Wait between retries
                     except Exception as inner_e:
                         print(f"DEBUG: Error during generation attempt {retry_count + 1}")
                         print(f"DEBUG: Error type: {type(inner_e)}")
@@ -334,14 +654,12 @@ class EcoAgent:
             return f"I apologize, but I encountered an error while processing your request: {str(e)}"
 
     def _run_agent(self):
-        """Run the agent in a separate process"""
         import asyncio
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
         loop.run_until_complete(self.agent.run())
     
     def start(self):
-        """Start the agent in a separate process"""
         if not self._running:
             self._running = True
             self._process = threading.Thread(target=self._run_agent)
@@ -349,53 +667,38 @@ class EcoAgent:
             self._process.start()
         
     def stop(self):
-        """Stop the agent"""
         if self._running:
             self._running = False
             if self._process:
                 self._process.join(timeout=1.0)
                 
     def process_request(self, request: SustainabilityRequest) -> SustainabilityResponse:
-        """Process a request synchronously and return the response"""
         try:
             if request.query_type == "chat":
-                print(f"\nDEBUG: Processing new chat request")
-                print(f"DEBUG: Message: {request.message}")
-                print(f"DEBUG: User ID: {request.user_id}")
-                print(f"DEBUG: Additional data: {request.data}")
-                
                 try:
                     message = self._generate_chat_response(
                         request.message,
                         request.user_id,
                         request.data
                     )
-                    print("DEBUG: Successfully generated response")
-                    
                     return SustainabilityResponse(
                         status="success",
                         message=message,
                         data={"type": "chat"}
                     )
                 except Exception as chat_error:
-                    print(f"DEBUG: Error in chat response generation: {str(chat_error)}")
-                    import traceback
-                    print("DEBUG: Full traceback:")
-                    print(traceback.format_exc())
+                    logger.error(f"Chat response error: {str(chat_error)}")
                     return SustainabilityResponse(
-                            status="error",
-                            error=f"Error generating response: {str(chat_error)}"
-                        )
+                        status="error",
+                        error=f"Error generating response: {str(chat_error)}"
+                    )
             else:
                 return SustainabilityResponse(
                     status="error",
                     error="Unsupported request type"
                 )
         except Exception as e:
-            print(f"DEBUG: Unexpected error in process_request: {str(e)}")
-            import traceback
-            print("DEBUG: Full traceback:")
-            print(traceback.format_exc())
+            logger.error(f"Request processing error: {str(e)}")
             return SustainabilityResponse(
                 status="error",
                 error=f"Unexpected error: {str(e)}"

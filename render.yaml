@@ -2,7 +2,9 @@ services:
   - type: web
     name: ecoagent
     env: python
-    buildCommand: pip install --no-cache-dir -r requirements.txt
+    buildCommand: |
+      mkdir -p /tmp/flask_session
+      pip install --no-cache-dir -r requirements.txt
     startCommand: gunicorn app:app --bind 0.0.0.0:$PORT --workers 4 --timeout 120
     envVars:
       - key: PYTHON_VERSION

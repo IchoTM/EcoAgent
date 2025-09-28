@@ -21,20 +21,33 @@ from auth import Auth, AuthError
 
 # Create Flask app and set configurations
 app = Flask(__name__)
-app.secret_key = os.getenv('FLASK_SECRET_KEY', os.urandom(24))
+
+# Session configuration
+app.secret_key = os.environ.get('FLASK_SECRET_KEY')
+if not app.secret_key:
+    raise ValueError("No FLASK_SECRET_KEY set for Flask application")
+
+# Session configuration
+from flask_session import Session
 app.config['SESSION_TYPE'] = 'filesystem'
-app.config['AUTH0_CALLBACK_URL'] = os.getenv('AUTH0_CALLBACK_URL')
-app.config['AUTH0_CLIENT_ID'] = os.getenv('AUTH0_CLIENT_ID')
-app.config['AUTH0_CLIENT_SECRET'] = os.getenv('AUTH0_CLIENT_SECRET')
-app.config['AUTH0_DOMAIN'] = os.getenv('AUTH0_DOMAIN')
+app.config['SESSION_PERMANENT'] = False
+app.config['PERMANENT_SESSION_LIFETIME'] = datetime.timedelta(minutes=30)
+Session(app)
+
+# Auth0 configuration
+app.config['AUTH0_CALLBACK_URL'] = os.environ.get('AUTH0_CALLBACK_URL')
+app.config['AUTH0_CLIENT_ID'] = os.environ.get('AUTH0_CLIENT_ID')
+app.config['AUTH0_CLIENT_SECRET'] = os.environ.get('AUTH0_CLIENT_SECRET')
+app.config['AUTH0_DOMAIN'] = os.environ.get('AUTH0_DOMAIN')
+
+# Proxy configuration for Render
+app.config['PROXY_FIX_X_PORT'] = 1
+app.config['PROXY_FIX_X_PREFIX'] = 1
 
 from database import ConsumptionData, User, get_session
 from agent_web_interface import WebAgentInterface
 from agents.agent_manager import start_agents
 import asyncio
-app.secret_key = 'your-secure-key'  # Replace with a secure secret key
-app.config['PROXY_FIX_X_PORT'] = 1
-app.config['PROXY_FIX_X_PREFIX'] = 1
 
 # Start the agents in a background thread
 import threading

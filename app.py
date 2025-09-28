@@ -18,6 +18,10 @@ import plotly.express as px
 import plotly.graph_objects as go
 import json
 from auth import Auth, AuthError
+
+# Create Flask app and set secret key
+app = Flask(__name__)
+app.secret_key = os.getenv('FLASK_SECRET_KEY', os.urandom(24))
 from database import ConsumptionData, User, get_session
 from agent_web_interface import WebAgentInterface
 from agents.agent_manager import start_agents

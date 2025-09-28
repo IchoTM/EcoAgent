@@ -3,7 +3,7 @@ import os
 from typing import Optional, Dict, Any
 import requests
 from urllib.parse import urlencode
-import streamlit as st
+from flask import redirect, request
 from dotenv import load_dotenv
 from database import User, get_session
 
@@ -16,7 +16,7 @@ AUTH0_CLIENT_SECRET = os.environ.get('AUTH0_CLIENT_SECRET')
 AUTH0_DOMAIN = os.environ.get('AUTH0_DOMAIN')
 AUTH0_M2M_CLIENT_ID = os.environ.get('AUTH0_M2M_CLIENT_ID')
 AUTH0_M2M_CLIENT_SECRET = os.environ.get('AUTH0_M2M_CLIENT_SECRET')
-BASE_URL = 'http://localhost:8501'
+BASE_URL = 'http://localhost:8501'  # Using port 8501 to match Auth0 configuration
 CALLBACK_URL = f"{BASE_URL}/callback"
 
 # Validate required environment variables
@@ -40,8 +40,56 @@ class Auth:
         self.client_secret = AUTH0_CLIENT_SECRET
         self.m2m_client_id = AUTH0_M2M_CLIENT_ID
         self.m2m_client_secret = AUTH0_M2M_CLIENT_SECRET
-        self.callback_url = "http://localhost:8501/callback"
+        self.callback_url = "http://localhost:8501/callback"  # Using port 8501 to match Auth0 configuration
         self._management_token = None
+        
+    def authorize_redirect(self, callback_url: str) -> str:
+        """Generate the Auth0 authorization URL and return a redirect response"""
+        params = {
+            'response_type': 'code',
+            'client_id': self.client_id,
+            'redirect_uri': callback_url,
+            'scope': 'openid profile email',
+            'audience': f'https://{self.domain}/api/v2/'
+        }
+        auth_url = f'https://{self.domain}/authorize?{urlencode(params)}'
+        return redirect(auth_url)
+        
+    def get_token(self, code: str = None) -> dict:
+        """Exchange authorization code for tokens"""
+        if not code:
+            code = request.args.get('code')
+            if not code:
+                raise AuthError('No authorization code provided')
+
+        token_url = f'https://{self.domain}/oauth/token'
+        payload = {
+            'grant_type': 'authorization_code',
+            'client_id': self.client_id,
+            'client_secret': self.client_secret,
+            'code': code,
+            'redirect_uri': self.callback_url
+        }
+        
+        response = requests.post(token_url, json=payload)
+        if response.status_code != 200:
+            raise AuthError(f'Failed to get token: {response.text}')
+            
+        return response.json()
+        
+    def get_userinfo(self, token_response: dict) -> dict:
+        """Get user information from Auth0 using the access token"""
+        if not token_response or 'access_token' not in token_response:
+            raise AuthError('Invalid token response')
+            
+        userinfo_url = f'https://{self.domain}/userinfo'
+        headers = {'Authorization': f'Bearer {token_response["access_token"]}'}
+        
+        response = requests.get(userinfo_url, headers=headers)
+        if response.status_code != 200:
+            raise AuthError(f'Failed to get user info: {response.text}')
+            
+        return response.json()
         
         # Validate M2M credentials at initialization
         if not self.m2m_client_id or not self.m2m_client_secret:

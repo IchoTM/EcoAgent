@@ -31,8 +31,45 @@ def login_required(f):
     def decorated_function(*args, **kwargs):
         if 'user' not in session:
             return redirect(url_for('login'))
+        
+        # Check if the session has expired (24 hours)
+        last_login = session.get('last_login', 0)
+        if datetime.now().timestamp() - last_login > 24 * 60 * 60:
+            session.clear()
+            return redirect(url_for('login'))
+            
         return f(*args, **kwargs)
     return decorated_function
+
+@app.route('/login')
+def login():
+    # Check if we've recently hit a rate limit
+    last_error_time = session.get('rate_limit_hit')
+    if last_error_time:
+        # If it's been less than 60 seconds since the last rate limit
+        if datetime.now().timestamp() - last_error_time < 60:
+            return render_template('error.html',
+                title="Rate Limit Active",
+                message="Please wait before trying to log in again.",
+                retry_after=int(60 - (datetime.now().timestamp() - last_error_time)))
+        else:
+            # Clear the rate limit flag if it's been long enough
+            session.pop('rate_limit_hit', None)
+
+    try:
+        callback_url = url_for('callback', _external=True)
+        return auth_client.authorize_redirect(callback_url)
+    except Exception as e:
+        app.logger.error(f"Error initiating login: {str(e)}")
+        if 'Too Many Requests' in str(e):
+            session['rate_limit_hit'] = datetime.now().timestamp()
+            return render_template('error.html',
+                title="Rate Limit Exceeded",
+                message="Too many login attempts. Please wait a moment before trying again.",
+                retry_after=60)
+        return render_template('error.html',
+            title="Login Error",
+            message="An error occurred while trying to log in. Please try again later.")
 
 def calculate_user_stats(consumption_data):
     if not consumption_data:
@@ -133,27 +170,64 @@ def analytics():
 def dashboard():
     db_session = get_session()
     try:
-        # First get the user's database ID using their auth0_id
-        user = db_session.query(User).filter_by(auth0_id=session['user']['id']).first()
-        if not user:
-            app.logger.error(f"User not found in database: {session['user']['id']}")
+        if 'user' not in session:
+            app.logger.error("No user in session")
             return redirect(url_for('login'))
+            
+        # Debug log to see the user info structure
+        app.logger.debug(f"User info in session: {session['user']}")
+        
+        # Get the user's Auth0 sub (unique identifier)
+        auth0_id = session['user'].get('sub')
+        if not auth0_id:
+            app.logger.error("No sub field in user info")
+            return redirect(url_for('login'))
+            
+        # First get the user's database ID using their auth0_id
+        user = db_session.query(User).filter_by(auth0_id=auth0_id).first()
+        
+        # If user doesn't exist, create a new user
+        if not user:
+            app.logger.info(f"Creating new user for auth0_id: {auth0_id}")
+            email = session['user'].get('email', '')
+            if not email and session['user'].get('nickname'):
+                email = f"{session['user']['nickname']}@github.com"
+            user = User(
+                auth0_id=auth0_id,
+                email=email,
+                name=session['user'].get('name', session['user'].get('nickname', 'Unknown'))
+            )
+            db_session.add(user)
+            db_session.commit()
             
         app.logger.info(f"Loading dashboard for user {user.id} ({user.email})")
         
-        # Get all consumption data for the user using their database ID
-        consumption_data = db_session.query(ConsumptionData).filter_by(user_id=user.id).all()
-        app.logger.info(f"Found {len(consumption_data)} consumption records")
-        
-        # Calculate user statistics
-        stats = calculate_user_stats(consumption_data)
-        
-        return render_template('index.html', stats=stats)
+        try:
+            # Get all consumption data for the user using their database ID
+            consumption_data = db_session.query(ConsumptionData).filter_by(user_id=user.id).all()
+            app.logger.info(f"Found {len(consumption_data)} consumption records")
+            
+            # Calculate user statistics
+            stats = calculate_user_stats(consumption_data)
+            
+            return render_template('index.html', stats=stats)
+            
+        except Exception as e:
+            app.logger.error(f"Error calculating statistics: {str(e)}")
+            # Return empty statistics if there's an error
+            empty_stats = {
+                'carbon_footprint': 0,
+                'energy_usage': 0,
+                'water_usage': 0,
+                'avg_us_carbon': 16,
+                'avg_us_energy': 877,
+                'avg_us_water': 8800
+            }
+            return render_template('index.html', stats=empty_stats)
         
     except Exception as e:
         app.logger.error(f"Error loading dashboard: {str(e)}")
         return redirect(url_for('login'))
-        
     finally:
         db_session.close()
 
@@ -165,20 +239,59 @@ def auth():
 @app.route('/callback')
 def callback():
     try:
+        # Get the authorization code from the URL parameters
         code = request.args.get('code')
         if not code:
             app.logger.error("No code in callback")
-            return redirect(url_for('login'))
-            
-        token = auth_client.get_token(code)
-        if not token or 'access_token' not in token:
-            app.logger.error(f"Invalid token response: {token}")
-            return redirect(url_for('login'))
-            
-        user_info = auth_client.get_user_profile(token['access_token'])
-        app.logger.info(f"User info received: {user_info}")
+            return render_template('error.html', 
+                title="Authentication Error",
+                message="No authorization code received. Please try logging in again.")
+
+        error = request.args.get('error')
+        error_description = request.args.get('error_description')
+        if error:
+            app.logger.error(f"Auth0 error: {error} - {error_description}")
+            return render_template('error.html',
+                title="Authentication Error",
+                message=error_description or "An error occurred during authentication.")
         
-        # Handle GitHub-specific auth
+        # Exchange the code for tokens
+        try:
+            token = auth_client.get_token(code)
+        except Exception as e:
+            if 'Too Many Requests' in str(e):
+                return render_template('error.html',
+                    title="Rate Limit Exceeded",
+                    message="Too many login attempts. Please wait a moment before trying again.",
+                    retry_after=60)
+            raise
+
+        # Get user information using the access token
+        try:
+            userinfo = auth_client.get_userinfo(token)
+        except Exception as e:
+            if 'Too Many Requests' in str(e):
+                return render_template('error.html',
+                    title="Rate Limit Exceeded",
+                    message="Too many login attempts. Please wait a moment before trying again.",
+                    retry_after=60)
+            raise
+
+        # Clear any existing session data
+        session.clear()
+        
+        # Store user information in session
+        session['user'] = userinfo
+        session['last_login'] = datetime.now().timestamp()
+        
+        # Redirect to dashboard
+        return redirect(url_for('dashboard'))
+        
+    except Exception as e:
+        app.logger.error(f"Error in callback: {str(e)}")
+        return render_template('error.html',
+            title="Authentication Error",
+            message="An unexpected error occurred during authentication. Please try again later.")
         is_github = user_info.get('sub', '').startswith('github|')
         
         # Store user info in session

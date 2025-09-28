@@ -6,6 +6,22 @@
     
     <div class="summary-stats">
         <div class="stat-card">
+            <h3>Overall Sustainability Score</h3>
+            <div class="stat-value">
+                {% set ratio = stats.carbon_footprint/stats.avg_us_carbon %}
+                {% if ratio <= 1 %}
+                    {% set score = 50 + (1 - ratio) * 50 %}
+                {% else %}
+                    {% set score = max(0, 50 - (ratio - 1) * 50) %}
+                {% endif %}
+                {{ "%.0f"|format(score) }}/100
+            </div>
+            <div class="comparison {% if score > 50 %}better{% elif score < 50 %}worse{% else %}neutral{% endif %}">
+                {% if score > 75 %}Excellent{% elif score > 50 %}Good{% elif score == 50 %}Average{% elif score > 25 %}Needs Improvement{% else %}Critical{% endif %}
+            </div>
+        </div>
+        
+        <div class="stat-card">
             <h3>Your Carbon Footprint</h3>
             <div class="stat-value">{{ stats.carbon_footprint }} tons CO2/year</div>
             <div class="comparison {% if stats.carbon_footprint < stats.avg_us_carbon %}better{% else %}worse{% endif %}">

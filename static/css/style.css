@@ -506,6 +506,11 @@ body:not(.home-page) {
     color: white;
 }
 
+.comparison.neutral {
+    background-color: #ffc107;
+    color: black;
+}
+
 /* Forms */
 .form-group {
     margin-bottom: 1.5rem;

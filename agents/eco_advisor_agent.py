@@ -17,7 +17,9 @@ class Recommendation(Model):
 # Initialize the recommendations agent
 eco_advisor = Agent(
     name="eco_advisor",
-    seed="your-secure-seed-2"  # Replace with a secure seed
+    seed="your-secure-seed-2",  # Replace with a secure seed
+    endpoint=["http://0.0.0.0:8001/eco_advisor"],  # Add endpoint for network communication
+    port=8001
 )
 
 # Configure Gemini AI

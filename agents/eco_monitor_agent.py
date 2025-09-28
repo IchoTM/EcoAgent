@@ -11,7 +11,9 @@ class EcoAlert(Model):
 # Create the EcoMonitor agent
 eco_monitor = Agent(
     name="eco_monitor",
-    seed="your-secure-seed"  # Replace with a secure seed
+    seed="your-secure-seed",  # Replace with a secure seed
+    endpoint=["http://0.0.0.0:8000/eco_monitor"],  # Add endpoint for network communication
+    port=8000
 )
 
 @eco_monitor.on_interval(period=3600.0)  # Check every hour

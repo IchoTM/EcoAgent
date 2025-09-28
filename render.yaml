@@ -1,8 +1,11 @@
 services:
   - type: web
     name: mhacks25
-    env: docker
-    dockerfilePath: ./Dockerfile
+    env: python
+    buildCommand: pip install --no-cache-dir -r requirements.txt
+    startCommand: gunicorn app:app
     envVars:
+      - key: PYTHON_VERSION
+        value: 3.12.0
       - key: FLASK_ENV
         value: production

@@ -11,7 +11,14 @@ services:
         value: production
       - key: TRUST_PROXY
         value: "1"
+      - key: HOST
+        value: "0.0.0.0"
+      - key: ALLOWED_HOSTS
+        value: "ecoagent.org,www.ecoagent.org,ecoagent-y0vt.onrender.com"
     headers:
       - path: /*
         name: Strict-Transport-Security
         value: max-age=31536000; includeSubDomains
+    domains:
+      - ecoagent.org
+      - www.ecoagent.org

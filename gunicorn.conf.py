@@ -13,3 +13,18 @@ timeout = 120
 # Enable proxy headers parsing for Cloudflare
 forwarded_allow_ips = '*'
 proxy_allow_ips = '*'
+
+# Security settings
+secure_scheme_headers = {
+    'X-FORWARDED-PROTOCOL': 'https',
+    'X-FORWARDED-PROTO': 'https',
+    'X-FORWARDED-SSL': 'on'
+}
+
+# Allow for longer keepalive
+keepalive = 65
+
+# Logging
+accesslog = '-'
+errorlog = '-'
+loglevel = 'info'

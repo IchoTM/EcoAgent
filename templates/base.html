@@ -3,10 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}EcoAgent - Your AI Sustainability Assistant{% endblock %}</title>
+    <title>{% block title %}EcoAgent - Environmental Sustainability Tracker{% endblock %}</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/components.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/chat.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/settings.css') }}">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/github-markdown-css/5.2.0/github-markdown.min.css">
@@ -38,11 +37,5 @@
     <script src="{{ url_for('static', filename='js/main.js') }}"></script>
     {% block scripts %}
     {% endblock scripts %}
-
-    {% if 'user' in session %}
-    <a href="{{ url_for('chat') }}" class="chat-button" title="Chat with EcoAgent">
-        <i class="fas fa-comments"></i>
-    </a>
-    {% endif %}
 </body>
 </html>

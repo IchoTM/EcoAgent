@@ -680,31 +680,4 @@ input::placeholder {
         padding: 1rem;
     }
 }
-/* Chat button */
-.chat-button {
-    position: fixed;
-    bottom: 30px;
-    right: 30px;
-    width: 60px;
-    height: 60px;
-    border-radius: 30px;
-    background: linear-gradient(120deg, var(--primary-color), var(--accent-color));
-    color: white;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    text-decoration: none;
-    box-shadow: var(--shadow-lg);
-    transition: all 0.3s ease;
-    z-index: 1000;
-}
 
-.chat-button i {
-    font-size: 24px;
-}
-
-.chat-button:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 15px 20px rgba(52, 211, 153, 0.4);
-    color: white;
-}

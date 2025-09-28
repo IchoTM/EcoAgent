@@ -103,8 +103,7 @@ tqdm==4.67.1
 typing-inspection==0.4.1
 typing_extensions==4.15.0
 tzdata==2025.2
-uagents==0.22.9
-uagents-core==0.3.9
+
 uritemplate==4.2.0
 urllib3==2.5.0
 uv==0.8.13

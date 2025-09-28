@@ -1,10 +1,9 @@
 #!/usr/bin/env python3
 """
-EcoAgent - AI Sustainability Assistant
+EcoAgent - Environmental Sustainability Tracker
 Flask Application
 """
 
-import asyncio
 import os
 from datetime import datetime
 from functools import wraps
@@ -12,20 +11,12 @@ from dotenv import load_dotenv
 
 # Load environment variables
 load_dotenv()
-
-# Debug: Check if API key is loaded (only show first/last 4 chars for security)
-api_key = os.getenv('GOOGLE_API_KEY')
-if api_key:
-    print(f"API Key found: {api_key[:4]}...{api_key[-4:]}")
-else:
-    print("API Key not found in environment")
 from urllib.parse import urlencode
 from flask import Flask, render_template, request, jsonify, session, redirect, url_for
 import plotly
 import plotly.express as px
 import plotly.graph_objects as go
 import json
-from agent.agent_core import EcoAgent, SustainabilityRequest
 from auth import Auth, AuthError
 from database import ConsumptionData, User, get_session
 
@@ -672,26 +663,6 @@ def add_consumption():
     finally:
         db_session.close()
 
-@app.route('/analyze', methods=['POST'])
-@login_required
-def analyze():
-    data = request.json
-    agent = EcoAgent()
-    request_data = SustainabilityRequest(
-        query_type=data.get('query_type', 'chat'),
-        user_id=session['user']['id'],
-        message=data.get('message'),
-        data=data.get('data')
-    )
-    # Use synchronous process_request instead of async analyze_sustainability
-    response = agent.process_request(request_data)
-    return jsonify({
-        'status': response.status,
-        'message': response.message if response.message else None,
-        'error': response.error if response.error else None,
-        'data': response.data if response.data else None
-    })
-
 def create_energy_chart(consumption_data):
     # Sort data by timestamp
     sorted_data = sorted(consumption_data, key=lambda x: x.timestamp)
@@ -805,12 +776,6 @@ def create_transport_chart(consumption_data):
     )
     
     return fig
-
-@app.route('/chat')
-@login_required
-def chat():
-    """Render the chat interface"""
-    return render_template('chat.html')
 
 if __name__ == '__main__':
     import argparse

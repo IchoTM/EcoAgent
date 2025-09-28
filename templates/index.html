@@ -4,8 +4,8 @@
 <div class="dashboard">
     <h1>Sustainability Dashboard</h1>
     
-    <div class="summary-stats">
-        <div class="stat-card">
+    <div style="text-align: center; margin: 20px auto; width: 100%;">
+        <div class="stat-card" style="display: inline-block; margin: 0 auto; float: none;">
             <h3>Overall Sustainability Score</h3>
             <div class="stat-value">
                 {% set ratio = stats.carbon_footprint/stats.avg_us_carbon %}
@@ -20,7 +20,9 @@
                 {% if score > 75 %}Excellent{% elif score > 50 %}Good{% elif score == 50 %}Average{% elif score > 25 %}Needs Improvement{% else %}Critical{% endif %}
             </div>
         </div>
-        
+    </div>
+
+    <div class="summary-stats">
         <div class="stat-card">
             <h3>Your Carbon Footprint</h3>
             <div class="stat-value">{{ stats.carbon_footprint }} tons CO2/year</div>
@@ -44,8 +46,6 @@
                 {{ "%.1f"|format(stats.water_usage/stats.avg_us_water*100) }}% of US average
             </div>
         </div>
-    </div>
-    
     </div>
 </div>
 {% endblock %}

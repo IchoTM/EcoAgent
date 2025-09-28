@@ -214,17 +214,24 @@ def dashboard():
             # Calculate user statistics
             stats = calculate_user_stats(consumption_data)
             
-            # Calculate sustainability score
-            ratio = stats['carbon_footprint'] / stats['avg_us_carbon']
-            if ratio <= 1:
-                score = 50 + (1 - ratio) * 50
+            # Set score based on whether there's consumption data
+            if not consumption_data:
+                stats['sustainability_score'] = 0
+                stats['score_color'] = '#808080'  # Grey
+                stats['score_text'] = 'No Data'
+                stats['score_class'] = 'no-data'
             else:
-                score = max(0, 50 - (ratio - 1) * 50)
-                
-            stats['sustainability_score'] = round(score)
-            stats['score_color'] = '#4CAF50' if score > 75 else '#8BC34A' if score > 50 else '#FFC107' if score > 25 else '#f44336'
-            stats['score_text'] = 'Excellent' if score > 75 else 'Good' if score > 50 else 'Average' if score == 50 else 'Needs Improvement' if score > 25 else 'Critical'
-            stats['score_class'] = 'better' if score > 50 else 'worse' if score < 50 else 'neutral'
+                # Calculate sustainability score
+                ratio = stats['carbon_footprint'] / stats['avg_us_carbon']
+                if ratio <= 1:
+                    score = 50 + (1 - ratio) * 50
+                else:
+                    score = max(0, 50 - (ratio - 1) * 50)
+                    
+                stats['sustainability_score'] = round(score)
+                stats['score_color'] = '#4CAF50' if score > 75 else '#8BC34A' if score > 50 else '#FFC107' if score > 25 else '#f44336'
+                stats['score_text'] = 'Excellent' if score > 75 else 'Good' if score > 50 else 'Average' if score == 50 else 'Needs Improvement' if score > 25 else 'Critical'
+                stats['score_class'] = 'better' if score > 50 else 'worse' if score < 50 else 'neutral'
             
             return render_template('index.html', stats=stats)
             
@@ -239,9 +246,9 @@ def dashboard():
                 'avg_us_energy': 877,
                 'avg_us_water': 8800,
                 'sustainability_score': 0,
-                'score_color': '#f44336',
+                'score_color': '#808080',  # Grey color
                 'score_text': 'No Data',
-                'score_class': 'neutral'
+                'score_class': 'no-data'
             }
             return render_template('index.html', stats=empty_stats)
         

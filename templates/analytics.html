@@ -1,5 +1,9 @@
 {% extends "base.html" %}
 
+{% block head %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/analytics.css') }}">
+{% endblock %}
+
 {% block content %}
 <div class="analytics-container">
     <h2>Your Sustainability Analytics</h2>
@@ -28,6 +32,80 @@
             <h3>Carbon Footprint</h3>
             <p class="chart-description">Monthly CO2 emissions (lbs)</p>
             <div id="carbon-chart" class="chart"></div>
+        </div>
+    </div>
+    
+    <!-- Cost Savings Analysis -->
+    <div class="cost-savings-container">
+        <h2>Cost Savings Analysis</h2>
+        <div class="savings-grid">
+            <!-- Electricity Savings -->
+            <div class="savings-card electricity">
+                <h3>Electricity Cost</h3>
+                <p>Your Monthly Cost: ${{ "%.2f"|format(user_costs.electricity) }}</p>
+                <p>Average US Cost: ${{ "%.2f"|format(avg_costs.electricity) }}</p>
+                <div class="savings {{ 'positive' if cost_savings.electricity > 0 else 'negative' }}">
+                    {% if cost_savings.electricity > 0 %}
+                        Saving ${{ "%.2f"|format(cost_savings.electricity) }}
+                    {% else %}
+                        Spending ${{ "%.2f"|format(cost_savings.electricity|abs) }} more
+                    {% endif %}
+                </div>
+            </div>
+            
+            <!-- Water Savings -->
+            <div class="savings-card water">
+                <h3>Water Cost</h3>
+                <p>Your Monthly Cost: ${{ "%.2f"|format(user_costs.water) }}</p>
+                <p>Average US Cost: ${{ "%.2f"|format(avg_costs.water) }}</p>
+                <div class="savings {{ 'positive' if cost_savings.water > 0 else 'negative' }}">
+                    {% if cost_savings.water > 0 %}
+                        Saving ${{ "%.2f"|format(cost_savings.water) }}
+                    {% else %}
+                        Spending ${{ "%.2f"|format(cost_savings.water|abs) }} more
+                    {% endif %}
+                </div>
+            </div>
+            
+            <!-- Transportation Savings -->
+            <div class="savings-card transport">
+                <h3>Transportation Cost</h3>
+                <p>Your Monthly Cost: ${{ "%.2f"|format(user_costs.transport) }}</p>
+                <p>Average US Cost: ${{ "%.2f"|format(avg_costs.transport) }}</p>
+                <div class="savings {{ 'positive' if cost_savings.transport > 0 else 'negative' }}">
+                    {% if cost_savings.transport > 0 %}
+                        Saving ${{ "%.2f"|format(cost_savings.transport) }}
+                    {% else %}
+                        Spending ${{ "%.2f"|format(cost_savings.transport|abs) }} more
+                    {% endif %}
+                </div>
+            </div>
+            
+            <!-- Total Savings -->
+            <div class="savings-card total">
+                <h3>Total Monthly Impact</h3>
+                <p>Your Total Cost: ${{ "%.2f"|format(total_user_cost) }}</p>
+                <p>Average US Cost: ${{ "%.2f"|format(total_avg_cost) }}</p>
+                <div class="savings {{ 'positive' if total_savings > 0 else 'negative' }}">
+                    {% if total_savings > 0 %}
+                        Total Savings: ${{ "%.2f"|format(total_savings) }}
+                    {% else %}
+                        Additional Costs: ${{ "%.2f"|format(total_savings|abs) }}
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        
+        <!-- Annual Projection -->
+        <div class="annual-projection">
+            <h3>Annual Projection</h3>
+            <p>
+                {% if total_savings > 0 %}
+                    At this rate, you could save <span class="highlight-savings positive">${{ "%.2f"|format(total_savings * 12) }}</span> per year!
+                {% else %}
+                    By reaching average US consumption levels, you could save up to <span class="highlight-savings negative">${{ "%.2f"|format(total_savings|abs * 12) }}</span> per year.
+                {% endif %}
+            </p>
         </div>
     </div>
 </div>

@@ -1,0 +1,96 @@
+.cost-savings-container {
+    margin-top: 2rem;
+    padding: 2rem;
+    background: #f8f9fa;
+    border-radius: 12px;
+}
+
+.cost-savings-container h2 {
+    color: #2f3f4f;
+    margin-bottom: 1.5rem;
+}
+
+.savings-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 1.5rem;
+}
+
+.savings-card {
+    background: white;
+    padding: 1.5rem;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.savings-card h3 {
+    margin-bottom: 1rem;
+}
+
+.savings-card.electricity h3 {
+    color: #4CAF50;
+}
+
+.savings-card.water h3 {
+    color: #2196F3;
+}
+
+.savings-card.transport h3 {
+    color: #FF9800;
+}
+
+.savings-card.total {
+    background: #2f3f4f;
+    color: white;
+}
+
+.savings-card.total h3 {
+    color: white;
+}
+
+.savings {
+    margin-top: 1rem;
+    font-weight: bold;
+}
+
+.savings.positive {
+    color: #4CAF50;
+}
+
+.savings.negative {
+    color: #f44336;
+}
+
+.total .savings {
+    font-size: 1.25rem;
+}
+
+.annual-projection {
+    margin-top: 2rem;
+    text-align: center;
+    padding: 1rem;
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.annual-projection h3 {
+    color: #2f3f4f;
+}
+
+.annual-projection p {
+    font-size: 1.25rem;
+    margin-top: 1rem;
+}
+
+.highlight-savings {
+    font-weight: bold;
+}
+
+.highlight-savings.positive {
+    color: #4CAF50;
+}
+
+.highlight-savings.negative {
+    color: #FF9800;
+}

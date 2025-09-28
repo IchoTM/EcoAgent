@@ -161,11 +161,43 @@ def analytics():
         # Convert annual tons to monthly pounds for display
         monthly_pounds = (stats['carbon_footprint'] * 2000) / 12  # First convert to pounds, then to monthly
         
+        # Calculate cost savings
+        # Average costs in US (monthly)
+        avg_costs = {
+            'electricity': 877 * 0.14,  # 877 kWh * $0.14 per kWh
+            'water': 8800 * 0.01,       # 8800 gal * $0.01 per gallon
+            'transport': 1200 * 0.20    # 1200 miles * $0.20 per mile (gas, maintenance, etc.)
+        }
+        
+        # User's costs
+        user_costs = {
+            'electricity': stats['energy_usage'] * 0.14,
+            'water': stats['water_usage'] * 0.01,
+            'transport': stats['miles_traveled'] * 0.20
+        }
+        
+        # Calculate savings (positive means saving money compared to average)
+        savings = {
+            'electricity': avg_costs['electricity'] - user_costs['electricity'],
+            'water': avg_costs['water'] - user_costs['water'],
+            'transport': avg_costs['transport'] - user_costs['transport']
+        }
+        
+        total_savings = sum(savings.values())
+        total_user_cost = sum(user_costs.values())
+        total_avg_cost = sum(avg_costs.values())
+        
         return render_template('analytics.html', 
                              user_energy=stats['energy_usage'],
                              user_water=stats['water_usage'],
                              user_miles=stats['miles_traveled'],
-                             user_carbon=monthly_pounds)
+                             user_carbon=monthly_pounds,
+                             cost_savings=savings,
+                             total_savings=total_savings,
+                             user_costs=user_costs,
+                             avg_costs=avg_costs,
+                             total_user_cost=total_user_cost,
+                             total_avg_cost=total_avg_cost)
     finally:
         db.close()
 

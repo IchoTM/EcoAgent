@@ -20,6 +20,27 @@ from database import ConsumptionData, User, get_session
 app = Flask(__name__)
 app.secret_key = 'your-secret-key'  # Replace with a secure secret key
 
+# Enable proper handling of proxy headers
+app.config['PREFERRED_URL_SCHEME'] = 'https'
+
+# Configure Flask to trust the X-Forwarded-For header from Cloudflare
+app.config['PROXY_FIX_X_FOR'] = 1
+app.config['PROXY_FIX_X_PROTO'] = 1
+app.config['PROXY_FIX_X_HOST'] = 1
+app.config['PROXY_FIX_X_PORT'] = 1
+app.config['PROXY_FIX_X_PREFIX'] = 1
+
+# Apply ProxyFix middleware for Cloudflare headers
+from werkzeug.middleware.proxy_fix import ProxyFix
+app.wsgi_app = ProxyFix(
+    app.wsgi_app,
+    x_for=1,      # Number of proxy servers in front of the app
+    x_proto=1,    # Whether to trust X-Forwarded-Proto
+    x_host=1,     # Whether to trust X-Forwarded-Host
+    x_port=1,     # Whether to trust X-Forwarded-Port
+    x_prefix=1    # Whether to trust X-Forwarded-Prefix
+)
+
 # Initialize Auth0 client
 auth_client = Auth()
 # Ensure we have the correct domain from environment variables

@@ -19,15 +19,6 @@ from database import ConsumptionData, User, get_session
 
 app = Flask(__name__)
 app.secret_key = 'your-secret-key'  # Replace with a secure secret key
-
-# Enable proper handling of proxy headers
-app.config['PREFERRED_URL_SCHEME'] = 'https'
-app.config['SERVER_NAME'] = 'ecoagent.org'  # Set the primary domain
-
-# Configure Flask to trust the X-Forwarded-For header from Cloudflare
-app.config['PROXY_FIX_X_FOR'] = 1
-app.config['PROXY_FIX_X_PROTO'] = 1
-app.config['PROXY_FIX_X_HOST'] = 1
 app.config['PROXY_FIX_X_PORT'] = 1
 app.config['PROXY_FIX_X_PREFIX'] = 1
 

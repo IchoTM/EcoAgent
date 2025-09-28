@@ -16,11 +16,11 @@ AUTH0_CLIENT_SECRET = os.environ.get('AUTH0_CLIENT_SECRET')
 AUTH0_DOMAIN = os.environ.get('AUTH0_DOMAIN')
 AUTH0_M2M_CLIENT_ID = os.environ.get('AUTH0_M2M_CLIENT_ID')
 AUTH0_M2M_CLIENT_SECRET = os.environ.get('AUTH0_M2M_CLIENT_SECRET')
-BASE_URL = 'http://localhost:8501'  # Using port 8501 to match Auth0 configuration
+BASE_URL = os.environ.get('BASE_URL', 'https://ecoagent-y0vt.onrender.com')
 CALLBACK_URL = f"{BASE_URL}/callback"
 
 # Validate required environment variables
-if not all([AUTH0_CLIENT_ID, AUTH0_CLIENT_SECRET, AUTH0_DOMAIN]):
+if not all([AUTH0_CLIENT_ID, AUTH0_CLIENT_SECRET, AUTH0_DOMAIN, BASE_URL]):
     raise EnvironmentError("Missing required Auth0 configuration. Check .env file.")
 
 # Validate M2M credentials
@@ -40,7 +40,7 @@ class Auth:
         self.client_secret = AUTH0_CLIENT_SECRET
         self.m2m_client_id = AUTH0_M2M_CLIENT_ID
         self.m2m_client_secret = AUTH0_M2M_CLIENT_SECRET
-        self.callback_url = "http://localhost:8501/callback"  # Using port 8501 to match Auth0 configuration
+        self.callback_url = CALLBACK_URL
         self._management_token = None
         
     def authorize_redirect(self, callback_url: str) -> str:

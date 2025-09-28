@@ -34,8 +34,7 @@ class ConsumptionData(Base):
     car_miles = Column(Float)
     public_transport = Column(Float)
     
-    # Lifestyle data
-    diet = Column(String)
+    # Household data
     household_size = Column(Integer)
     
     user = relationship("User", back_populates="consumption_data")

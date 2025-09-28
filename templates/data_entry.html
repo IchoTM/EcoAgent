@@ -1,0 +1,79 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="data-entry">
+    <h1>Add Consumption Data</h1>
+    
+    <div class="card">
+        <form id="consumption-form">
+            <div class="form-group">
+                <label for="electricity">Electricity (kWh)</label>
+                <input type="number" id="electricity" name="electricity" required>
+            </div>
+            
+            <div class="form-group">
+                <label for="gas">Gas (therms)</label>
+                <input type="number" id="gas" name="gas" required>
+            </div>
+            
+            <div class="form-group">
+                <label for="water">Water (gallons)</label>
+                <input type="number" id="water" name="water" required>
+            </div>
+            
+            <div class="form-group">
+                <label for="car_miles">Car Miles</label>
+                <input type="number" id="car_miles" name="car_miles" required>
+            </div>
+            
+            <div class="form-group">
+                    <label for="public_transport">Public Transport Miles</label>
+                    <input type="number" id="public_transport" name="public_transport" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="household_size">Household Size</label>
+                <input type="number" id="household_size" name="household_size" required min="1">
+            </div>
+            
+            <button type="submit" class="btn">Submit</button>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.getElementById('consumption-form').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        
+        const formData = {
+            electricity: parseFloat(document.getElementById('electricity').value),
+            gas: parseFloat(document.getElementById('gas').value),
+            water: parseFloat(document.getElementById('water').value),
+            car_miles: parseFloat(document.getElementById('car_miles').value),
+            public_transport: parseFloat(document.getElementById('public_transport').value),
+            household_size: parseInt(document.getElementById('household_size').value)
+        };
+        
+        try {
+            const response = await fetch('/add_consumption', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(formData)
+            });
+            
+            if (response.ok) {
+                window.location.href = '/';
+            } else {
+                alert('Error submitting data');
+            }
+        } catch (error) {
+            console.error('Error:', error);
+            alert('Error submitting data');
+        }
+    });
+</script>
+{% endblock %}

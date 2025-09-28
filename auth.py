@@ -24,23 +24,48 @@ class AuthError(Exception):
 class Auth:
     """Authentication handler class"""
     
-    @staticmethod
-    def get_auth_url() -> str:
+    def __init__(self):
+        self.domain = AUTH0_DOMAIN
+        self.client_id = AUTH0_CLIENT_ID
+        self.client_secret = AUTH0_CLIENT_SECRET
+        self.callback_url = "http://localhost:8501/callback"
+    
+    def get_auth_url(self) -> str:
         """Generate Auth0 authorization URL"""
         params = {
             'response_type': 'code',
-            'client_id': AUTH0_CLIENT_ID,
-            'redirect_uri': CALLBACK_URL,
-            'scope': 'openid profile email'
+            'client_id': self.client_id,
+            'redirect_uri': self.callback_url,
+            'scope': 'openid profile',
+            'audience': f'https://{self.domain}/userinfo'
         }
-        return f"https://{AUTH0_DOMAIN}/authorize?{urlencode(params)}"
+        return f"https://{self.domain}/authorize?{urlencode(params)}"
 
-    @staticmethod
-    def get_user_profile(access_token: str) -> Dict[str, Any]:
+    def get_token(self, code: str) -> Dict[str, Any]:
+        """Exchange authorization code for tokens"""
+        payload = {
+            'grant_type': 'authorization_code',
+            'client_id': self.client_id,
+            'client_secret': self.client_secret,
+            'code': code,
+            'redirect_uri': self.callback_url
+        }
+        
+        response = requests.post(
+            f"https://{self.domain}/oauth/token",
+            json=payload
+        )
+        
+        if response.status_code != 200:
+            raise AuthError(f"Failed to get token: {response.text}")
+            
+        return response.json()
+
+    def get_user_profile(self, access_token: str) -> Dict[str, Any]:
         """Get user profile from Auth0"""
         headers = {'Authorization': f'Bearer {access_token}'}
         response = requests.get(
-            f"https://{AUTH0_DOMAIN}/userinfo",
+            f"https://{self.domain}/userinfo",
             headers=headers
         )
         

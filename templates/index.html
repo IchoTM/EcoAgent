@@ -1,0 +1,85 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="dashboard">
+    <h1>Sustainability Dashboard</h1>
+    
+    <div class="summary-stats">
+        <div class="stat-card">
+            <h3>Your Carbon Footprint</h3>
+            <div class="stat-value">{{ stats.carbon_footprint }} tons CO2/year</div>
+            <div class="comparison {% if stats.carbon_footprint < stats.avg_us_carbon %}better{% else %}worse{% endif %}">
+                {{ "%.1f"|format(stats.carbon_footprint/stats.avg_us_carbon*100) }}% of US average
+            </div>
+        </div>
+        
+        <div class="stat-card">
+            <h3>Energy Usage</h3>
+            <div class="stat-value">{{ stats.energy_usage }} kWh/month</div>
+            <div class="comparison {% if stats.energy_usage < stats.avg_us_energy %}better{% else %}worse{% endif %}">
+                {{ "%.1f"|format(stats.energy_usage/stats.avg_us_energy*100) }}% of US average
+            </div>
+        </div>
+        
+        <div class="stat-card">
+            <h3>Water Usage</h3>
+            <div class="stat-value">{{ stats.water_usage }} gal/month</div>
+            <div class="comparison {% if stats.water_usage < stats.avg_us_water %}better{% else %}worse{% endif %}">
+                {{ "%.1f"|format(stats.water_usage/stats.avg_us_water*100) }}% of US average
+            </div>
+        </div>
+    </div>
+    
+    <div class="grid">
+        <div class="card">
+            <div id="energy-chart"></div>
+        </div>
+        
+        <div class="card">
+            <div id="transport-chart"></div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // Initialize charts
+    Plotly.newPlot('energy-chart', {{ charts.energy | safe }});
+    Plotly.newPlot('transport-chart', {{ charts.transport | safe }});
+    
+    // Form submission
+    document.getElementById('consumption-form').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        
+        const formData = {
+            electricity: parseFloat(document.getElementById('electricity').value),
+            gas: parseFloat(document.getElementById('gas').value),
+            water: parseFloat(document.getElementById('water').value),
+            car_miles: parseFloat(document.getElementById('car_miles').value),
+            public_transport: parseFloat(document.getElementById('public_transport').value),
+            diet: document.getElementById('diet').value,
+            household_size: parseInt(document.getElementById('household_size').value)
+        };
+        
+        try {
+            const response = await fetch('/add_consumption', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(formData)
+            });
+            
+            if (response.ok) {
+                location.reload();
+            } else {
+                alert('Error submitting data');
+            }
+        } catch (error) {
+            console.error('Error:', error);
+            alert('Error submitting data');
+        }
+    });
+</script>
+{% endblock %}

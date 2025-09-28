@@ -1,0 +1,32 @@
+{% extends "base_home.html" %}
+
+{% block content %}
+<div class="welcome-section">
+    <h1>Welcome to EcoAgent</h1>
+    <div class="welcome-content">
+        <p class="lead">Your Personal AI-Powered Sustainability Assistant</p>
+        
+        <div class="features">
+            <div class="feature-item">
+                <h3>Track Your Impact</h3>
+                <p>Monitor your household's energy consumption, water usage, and transportation patterns to understand your environmental footprint.</p>
+            </div>
+            
+            <div class="feature-item">
+                <h3>Compare & Improve</h3>
+                <p>See how your sustainability efforts compare to average U.S. households and get personalized recommendations for improvement.</p>
+            </div>
+            
+            <div class="feature-item">
+                <h3>Make a Difference</h3>
+                <p>Take meaningful steps towards reducing your carbon footprint and contributing to a more sustainable future.</p>
+            </div>
+        </div>
+        
+        <div class="cta-section">
+            <p>Ready to start your sustainability journey?</p>
+            <a href="{{ url_for('auth') }}" class="btn btn-primary">Get Started</a>
+        </div>
+    </div>
+</div>
+{% endblock %}

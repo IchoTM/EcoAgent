@@ -1,7 +1,21 @@
 [project]
-name = "mhacks25"
+name = "ecoagent"
 version = "0.1.0"
-description = "Add your description here"
+description = "AI-powered sustainability assistant that helps users track and reduce their environmental impact"
 readme = "README.md"
 requires-python = ">=3.12"
-dependencies = []
+dependencies = [
+    "flask",
+    "google-generativeai",
+    "python-dotenv",
+    "sqlalchemy",
+    "uagents",
+    "requests",
+    "plotly",
+    "pandas",
+    "numpy"
+]
+
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"

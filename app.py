@@ -86,15 +86,6 @@ def calculate_user_stats(consumption_data):
     
     # Calculate averages from the last 30 days of data
     recent_data = sorted(consumption_data, key=lambda x: x.timestamp, reverse=True)[:30]
-    
-    # Debug: Print raw data
-    print("\nDEBUG: Raw consumption data for last 30 days:")
-    for d in recent_data:
-        print(f"Date: {d.timestamp}")
-        print(f"  Electricity: {d.electricity} kWh")
-        print(f"  Gas: {d.gas} therms")
-        print(f"  Car: {d.car_miles} miles")
-        print(f"  Public Transit: {d.public_transport} miles")
 
     # Calculate individual contributions to monthly carbon footprint
     # Handle NULL values by treating them as 0 or filtering them out
@@ -102,11 +93,6 @@ def calculate_user_stats(consumption_data):
     gas_carbon = sum([(d.gas or 0) * 11.7 for d in recent_data]) / len(recent_data)
     car_carbon = sum([(d.car_miles or 0) * 0.89 for d in recent_data]) / len(recent_data)
     transit_carbon = sum([(d.public_transport or 0) * 0.14 for d in recent_data]) / len(recent_data)
-    
-    # Debug: Print intermediate calculations
-    print("\nDEBUG: Monthly Carbon Calculations (lbs CO2):")
-    print(f"Electricity: {electricity_carbon:.2f} lbs CO2/month")
-    print(f"Gas: {gas_carbon:.2f} lbs CO2/month")
     print(f"Car: {car_carbon:.2f} lbs CO2/month")
     print(f"Transit: {transit_carbon:.2f} lbs CO2/month")
     

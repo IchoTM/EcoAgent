@@ -252,15 +252,9 @@ class EcoAgent:
 
             # Get response from Gemini
             try:
-                print("DEBUG: Creating Gemini model...")
                 # Initialize model with full path
                 model = genai.GenerativeModel('models/gemini-2.5-flash')  # Using the flash model which is available
-                print("DEBUG: Model created successfully")
-                
-                print("DEBUG: Generating content with prompt:", prompt[:200] + "...")
                 response = model.generate_content(prompt)
-                print("DEBUG: Content generated successfully")
-                print("DEBUG: Response:", response.text)
                 
                 if not response.text:
                     return "I apologize, but I received an empty response. Please try asking your question again."
@@ -283,7 +277,7 @@ class EcoAgent:
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
         loop.run_until_complete(self.agent.run())
-            
+    
     def start(self):
         """Start the agent in a separate process"""
         if not self._running:

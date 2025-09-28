@@ -147,7 +147,11 @@ def home():
 def analytics():
     db = get_session()
     try:
-        user = db.query(User).filter_by(auth0_id=session['user']['id']).first()
+        auth0_id = session['user'].get('sub')
+        if not auth0_id:
+            return redirect(url_for('login'))
+            
+        user = db.query(User).filter_by(auth0_id=auth0_id).first()
         if not user:
             return redirect(url_for('login'))
         
@@ -210,6 +214,18 @@ def dashboard():
             # Calculate user statistics
             stats = calculate_user_stats(consumption_data)
             
+            # Calculate sustainability score
+            ratio = stats['carbon_footprint'] / stats['avg_us_carbon']
+            if ratio <= 1:
+                score = 50 + (1 - ratio) * 50
+            else:
+                score = max(0, 50 - (ratio - 1) * 50)
+                
+            stats['sustainability_score'] = round(score)
+            stats['score_color'] = '#4CAF50' if score > 75 else '#8BC34A' if score > 50 else '#FFC107' if score > 25 else '#f44336'
+            stats['score_text'] = 'Excellent' if score > 75 else 'Good' if score > 50 else 'Average' if score == 50 else 'Needs Improvement' if score > 25 else 'Critical'
+            stats['score_class'] = 'better' if score > 50 else 'worse' if score < 50 else 'neutral'
+            
             return render_template('index.html', stats=stats)
             
         except Exception as e:
@@ -221,7 +237,11 @@ def dashboard():
                 'water_usage': 0,
                 'avg_us_carbon': 16,
                 'avg_us_energy': 877,
-                'avg_us_water': 8800
+                'avg_us_water': 8800,
+                'sustainability_score': 0,
+                'score_color': '#f44336',
+                'score_text': 'No Data',
+                'score_class': 'neutral'
             }
             return render_template('index.html', stats=empty_stats)
         
@@ -359,7 +379,7 @@ def delete_user_data():
     db_session = get_session()
     try:
         # Get user by auth0_id
-        auth0_id = session['user']['id']
+        auth0_id = session['user']['sub']
         user = db_session.query(User).filter_by(auth0_id=auth0_id).first()
         if not user:
             return jsonify({'status': 'error', 'message': 'User not found'}), 404
@@ -476,7 +496,7 @@ def add_consumption():
         app.logger.error("No user in session")
         return jsonify({'status': 'error', 'message': 'Not authenticated'}), 401
 
-    app.logger.info(f"Received consumption data request for user: {session['user']['id']}")
+    app.logger.info(f"Received consumption data request for user: {session['user']['sub']}")
     
     db_session = get_session()
     try:
@@ -488,9 +508,9 @@ def add_consumption():
             return jsonify({'status': 'error', 'message': 'No data provided'}), 400
 
         # Get the user's database ID using their auth0_id
-        user = db_session.query(User).filter_by(auth0_id=session['user']['id']).first()
+        user = db_session.query(User).filter_by(auth0_id=session['user']['sub']).first()
         if not user:
-            app.logger.error(f"User not found in database: {session['user']['id']}")
+            app.logger.error(f"User not found in database: {session['user']['sub']}")
             return jsonify({'status': 'error', 'message': 'User not found'}), 404
             
         app.logger.info(f"Found user in database: {user.id} ({user.email})")

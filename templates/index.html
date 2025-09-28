@@ -7,17 +7,13 @@
     <div style="text-align: center; margin: 20px auto; width: 100%;">
         <div class="stat-card" style="display: inline-block; margin: 0 auto; float: none;">
             <h3>Overall Sustainability Score</h3>
-            <div class="stat-value">
-                {% set ratio = stats.carbon_footprint/stats.avg_us_carbon %}
-                {% if ratio <= 1 %}
-                    {% set score = 50 + (1 - ratio) * 50 %}
-                {% else %}
-                    {% set score = max(0, 50 - (ratio - 1) * 50) %}
-                {% endif %}
-                {{ "%.0f"|format(score) }}/100
-            </div>
-            <div class="comparison {% if score > 50 %}better{% elif score < 50 %}worse{% else %}neutral{% endif %}">
-                {% if score > 75 %}Excellent{% elif score > 50 %}Good{% elif score == 50 %}Average{% elif score > 25 %}Needs Improvement{% else %}Critical{% endif %}
+            <div style="text-align: center; padding: 20px;">
+                <div style="font-size: 72px; font-weight: bold; color: {{ stats.score_color }};">
+                    {{ stats.sustainability_score }}
+                </div>
+                <div style="font-size: 24px; color: #666; margin-top: 10px;">
+                    {{ stats.score_text }}
+                </div>
             </div>
         </div>
     </div>
